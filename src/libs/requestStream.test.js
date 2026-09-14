@@ -28,12 +28,54 @@ jest.mock("./storage", () => ({
 }));
 
 import { fetchStreamNative, requestStream } from "./requestStream";
+import { getSettingWithDefault } from "./storage";
 
 describe("fetchStreamNative", () => {
   afterEach(() => {
+    getSettingWithDefault.mockResolvedValue({ httpTimeout: 1000 });
     jest.restoreAllMocks();
     mockIsGm = false;
     global.TextDecoder = originalTextDecoder;
+  });
+
+  test("background stream transport blocks remote requests using the current offline setting", async () => {
+    getSettingWithDefault.mockResolvedValue({
+      httpTimeout: 1000,
+      networkPolicy: "offline",
+    });
+    global.fetch = jest.fn();
+    const stream = fetchStreamNative(
+      "https://edge.microsoft.com/translate",
+      {},
+      { networkPolicy: "normal" }
+    );
+    await expect(stream.next()).rejects.toThrow("仅本机离线");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test("local streaming requests preserve abort signals and cannot follow redirects", async () => {
+    getSettingWithDefault.mockResolvedValue({
+      httpTimeout: 1000,
+      networkPolicy: "offline",
+    });
+    const controller = new AbortController();
+    const cancel = jest.fn();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({ read: async () => ({ done: true }), cancel }),
+      },
+    });
+    const stream = fetchStreamNative(
+      "http://[::1]:11434/api/chat",
+      { redirect: "follow" },
+      { signal: controller.signal }
+    );
+    await expect(stream.next()).resolves.toMatchObject({ done: true });
+    expect(global.fetch.mock.calls[0][1].redirect).toBe("error");
+    controller.abort();
+    expect(global.fetch.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(cancel).toHaveBeenCalled();
   });
 
   test("cancels the reader when stream consumption stops early", async () => {
@@ -78,7 +120,7 @@ describe("requestStream in userscript", () => {
   let abort;
 
   const waitForRequestDetails = async () => {
-    for (let i = 0; i < 5 && !requestDetails; i += 1) {
+    for (let i = 0; i < 12 && !requestDetails; i += 1) {
       await Promise.resolve();
     }
     expect(requestDetails).toBeTruthy();

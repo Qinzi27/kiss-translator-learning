@@ -1,5 +1,6 @@
 import {
   API_SPE_TYPES,
+  API_SLUG_LOCAL_ARGOS,
   DEFAULT_API_LIST,
   DEFAULT_API_TYPE,
   OPT_LANGS_FROM_SPEC,
@@ -14,6 +15,7 @@ import {
   normalizeApiThinkingSettings,
   normalizeApiModelListUrls,
   OPT_TRANS_CLOUDFLAREAI,
+  OPT_TRANS_CUSTOMIZE,
   OPT_TRANS_DEEPSEEK,
   OPT_TRANS_EPHONEAI,
   OPT_TRANS_CEREBRAS,
@@ -22,6 +24,7 @@ import {
   OPT_TRANS_GEMINI_2,
   OPT_TRANS_ALIYUNBAILIAN,
   OPT_TRANS_MICROSOFT,
+  OPT_TRANS_MYMEMORY,
   OPT_TRANS_SILICONFLOW,
   OPT_TRANS_OPENAI,
   OPT_TRANS_OPENCODEGO,
@@ -41,6 +44,52 @@ test("includes Microsoft in the built-in API list", () => {
   expect(
     DEFAULT_API_LIST.some((api) => api.apiType === OPT_TRANS_MICROSOFT)
   ).toBe(true);
+});
+
+test("provides an anonymous MyMemory preset without AI or batch capabilities", () => {
+  expect(
+    DEFAULT_API_LIST.find((api) => api.apiType === OPT_TRANS_MYMEMORY)
+  ).toMatchObject({
+    apiSlug: OPT_TRANS_MYMEMORY,
+    apiName: "MyMemory · 免 Key",
+    url: "https://api.mymemory.translated.net/get",
+    key: "",
+    useBatchFetch: false,
+    useStream: false,
+    fetchLimit: 1,
+    fetchInterval: 1000,
+  });
+  expect(API_SPE_TYPES.machine.has(OPT_TRANS_MYMEMORY)).toBe(true);
+  expect(API_SPE_TYPES.ai.has(OPT_TRANS_MYMEMORY)).toBe(false);
+  expect(API_SPE_TYPES.batch.has(OPT_TRANS_MYMEMORY)).toBe(false);
+  expect(OPT_LANGS_FROM_SPEC[OPT_TRANS_MYMEMORY].get("auto")).toBe("auto");
+  expect(OPT_LANGS_TO_SPEC[OPT_TRANS_MYMEMORY].get("en")).toBe("en");
+  expect(OPT_LANGS_TO_SPEC[OPT_TRANS_MYMEMORY].get("zh-CN")).toBe("zh-CN");
+});
+
+test("keeps the local Argos preset separate from the generic Custom template", () => {
+  const argos = DEFAULT_API_LIST.find(
+    (api) => api.apiSlug === API_SLUG_LOCAL_ARGOS
+  );
+  const customTemplate = DEFAULT_API_LIST.find(
+    (api) => api.apiType === OPT_TRANS_CUSTOMIZE
+  );
+
+  expect(argos).toMatchObject({
+    apiType: OPT_TRANS_CUSTOMIZE,
+    apiName: "本机离线 · Argos",
+    url: "http://127.0.0.1:8765/translate",
+    key: "",
+    reqHook: "",
+    resHook: "",
+    useBatchFetch: false,
+    useStream: false,
+    httpTimeout: 60,
+    fetchLimit: 1,
+  });
+  expect(API_SPE_TYPES.builtin.has(argos.apiSlug)).toBe(true);
+  expect(customTemplate.apiSlug).toBe(OPT_TRANS_CUSTOMIZE);
+  expect(customTemplate.url).toBe("");
 });
 
 test("configures the official and free Yandex translators", () => {

@@ -6,8 +6,14 @@ import { useI18n } from "../../hooks/I18n";
 import { useMediaQueryMatch } from "../../hooks/MediaQuery";
 import { OPTIONS_STYLES } from "./styles";
 import { normalizeOptionsPath } from "./paths";
+import { policyFetch } from "../../libs/networkPolicy";
 
-const WIDE_PAGE_PATHS = new Set(["/apis", "/playground", "/prompts"]);
+const WIDE_PAGE_PATHS = new Set([
+  "/apis",
+  "/ai-services",
+  "/playground",
+  "/prompts",
+]);
 
 export const isWideOptionsPage = (pathname) =>
   WIDE_PAGE_PATHS.has(normalizeOptionsPath(pathname));
@@ -21,13 +27,19 @@ export async function fetchLatestVersion({ signal, now = Date.now } = {}) {
 
   for (const versionUrl of versionUrls) {
     try {
-      const response = await fetch(`${versionUrl}?t=${now()}`, { signal });
+      const response = await policyFetch(`${versionUrl}?t=${now()}`, {
+        signal,
+      });
       if (!response.ok) {
         throw new Error(`Version request failed: ${response.status}`);
       }
       return (await response.text()).trim();
     } catch (error) {
-      if (error?.name === "AbortError") throw error;
+      if (
+        error?.name === "AbortError" ||
+        error?.code === "NETWORK_POLICY_BLOCKED"
+      )
+        throw error;
       lastError = error;
     }
   }
@@ -196,6 +208,10 @@ export default function Layout() {
       "/apis": [
         i18n("options_translation_services"),
         i18n("options_services_description"),
+      ],
+      "/ai-services": [
+        "AI 翻译向导",
+        "选择中英翻译服务，配置接口与措辞偏好，再应用到网页翻译。",
       ],
       "/prompts": [
         i18n("prompt_management"),

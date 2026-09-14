@@ -2036,6 +2036,10 @@ export default function Apis() {
     <Box>
       <Stack spacing={3}>
         <Alert severity="info">
+          使用 AI 翻译？<Link href="#/ai-services">打开 AI 翻译向导</Link>
+          ，选择服务、配置密钥和翻译偏好。
+        </Alert>
+        <Alert severity="info">
           {i18n("about_api")}
           <br />
           {i18n("about_api_2")}

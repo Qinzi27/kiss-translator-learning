@@ -1,120 +1,30 @@
-# 版本号管理与发布指南
+# 学习版版本与发布
 
-## 📌 背景
+本分支基于上游 2.0.32。Chrome 的数字版本使用 `public/manifest.json` 的 `version`，当前为 `2.0.32`；学习版标识使用 `version_name`，当前为 `2.0.32-learning.3`，GitHub 标签对应 `v2.0.32-learning.3`。
 
-项目的版本号分散在以下多个文件中：
-- `package.json`
-- `.env` (`REACT_APP_VERSION`)
-- `public/manifest.json`
-- `public/manifest.firefox.json`
-- `public/manifest.thunderbird.json`
+更新学习版时同步修改 `version_name`、README 和 `RELEASE-NOTES.md`。若需要提升浏览器数字版本，使用保留的 `pnpm version:*` / `pnpm sync-version` 脚本同步 package.json、.env 和各平台清单，再检查学习版 `version_name`。
 
-为了避免手动更新多个文件的繁琐与疏漏，项目已接入**自动化版本号管理及同步方案**。
+## 发布步骤
 
-## ✨ 解决方案
+1. 确认 Git 远程指向自己的学习版仓库，保留上游作者和 GPL 许可；不要向 fishjar 上游直接推送学习版产物。
+2. 更新文档和验证边界，运行 README / VALIDATION 中与修改有关的测试；真实接口测试会联网，按需明确执行。
+3. 检查 `git diff --check` 和待提交文件，提交代码；模型、依赖、用户 Key、日志及内部交接文件不得进入仓库。
+4. 从该提交构建和打包：
 
-### 单一版本源
-**`package.json` 是项目中唯一的版本号来源**。其他所有文件的版本号均由此文件自动分发与同步。
+   ```sh
+   pnpm install --frozen-lockfile
+   pnpm build:chrome
+   python3 src/scripts/package-learning.py
+   ```
 
-### 自动同步机制
-* **构建时自动同步：** 执行以下打包命令时，底层会自动先触发版本号同步，确保产物一致。
-  ```bash
-  pnpm build        # 构建前自动同步版本号
-  pnpm build+zip    # 打包前自动同步版本号
-  ```
-* **手动强制同步：** 如果不小心手动改动了 `package.json`，可运行此命令：
-  ```bash
-  pnpm sync-version  # 手动触发版本号同步
-  ```
+5. 检查 `releases/release-manifest.json` 的提交号、版本及工作区状态。生产构建和测试必须另外成功；打包脚本只验证清单与包结构，不证明功能通过。
+6. 在该提交创建版本标签和 GitHub Release，附 `RELEASE-NOTES.md` 内容；当前学习版应标记为预发布。
+7. 上传两个 ZIP、`SHA256SUMS.txt` 和 `release-manifest.json`，确认下载可用、SHA-256 一致，并列提供对应源码。
 
-## 🚀 版本号更新方法
+源码 ZIP 不包含 Git 历史，不能直接从无 `.git` 的目录重新制作源码包；重新发布请克隆本仓库。源码包本身可以直接安装依赖并构建扩展。
 
-更新版本号时，**强烈推荐**使用以下封装好的快捷命令。这些命令会自动完成 `package.json` 的修改并**同步到所有关联文件**。
+## GitHub Actions
 
-```bash
-# 补丁版本更新 (Patch): 2.0.19 -> 2.0.20（Bug 修复）
-pnpm version:patch
+`.github/workflows/release.yml` 已改为手动运行的 **Build learning edition**：仅运行定向测试、构建 Chrome、生成 ZIP 和校验文件并保存构建产物。它不会在标签推送后自动发布 Release 或部署 Pages；首次 fork 后可在 Actions 页面按需启用并运行。
 
-# 次版本更新 (Minor): 2.0.19 -> 2.1.0（新功能引入）
-pnpm version:minor
-
-# 主版本更新 (Major): 2.0.19 -> 3.0.0（重大断代更新）
-pnpm version:major
-
-# 手动指定精确版本号: 设置为 2.1.0
-pnpm version:set -- 2.1.0
-```
-
-这些命令会自动完成：
-1. ✅ 更新 `package.json` 中的版本号
-2. ✅ 自动同步到其他所有文件
-
-## 📝 完整的版本发布流程（Git 规范）
-
-为了确保分支安全，项目采用了 `master` (生产/发版) 与 `dev` (开发/集成) 双分支管理。**禁止直接向 `master` 推送代码**，必须通过 GitHub PR 合并。
-
-以下是标准的合规发布流程：
-
-### 阶段一：在 `dev` 分支完成发版准备
-```bash
-# 0. 确保当前在 dev 分支且代码最新
-git checkout dev
-git pull origin dev
-
-# 1. 代码格式化检查
-pnpm format
-
-# 2. 更新版本号（自动完成所有文件的同步）
-pnpm version:patch
-
-# 3. 更新 CHANGELOG.md（手动编辑）
-# 添加新版本的更新内容
-
-# 4. 构建和打包（构建前会再次确保版本号同步）
-pnpm build+zip
-
-# 5. 提交变更代码
-git add .
-git commit -m "chore: bump version to 2.0.20"
-
-# 6. 推送到远端 dev 分支
-git push origin dev
-```
-
-### 阶段二：通过 GitHub PR 发布到 `master`
-1. 打开 GitHub 仓库页面，发起一个 **`dev` -> `master`** 的 Pull Request。
-2. PR 标题命名为 `Release v2.0.20`。
-3. 确认自动化检查通过后，点击 **Merge pull request** 将代码正式合入 `master`。
-
-### 阶段三：本地同步并在 `master` 标记 Tag（触发自动发版）
-```bash
-# 7. 切换到本地 master 并拉取 GitHub 确认合入的最新代码
-git checkout master
-git pull origin master
-
-# 8. 基于生产分支节点打上版本 Tag
-git tag -a v2.0.20 -m "Release version 2.0.20"
-
-# 9. 推送 Tag 到远端（关键：此操作将触发 GitHub Actions 的自动发版工作流）
-git push origin v2.0.20
-
-# 10. 切换回 dev 分支继续日常开发
-git checkout dev
-
-# 11. 把 master 上的这个合并记录也同步回 dev
-git pull --ff-only origin dev
-git merge --ff-only origin/master
-git push origin dev
-```
-
-## 🛠️ 相关脚本文件
-
-- `src/scripts/sync-version.mjs` - 版本号同步脚本
-- `src/scripts/update-version.mjs` - 版本号更新脚本
-
-## ⚠️ 注意事项
-
-1. **不要手动修改** `.env`、`manifest.json` 等文件中的版本号。
-2. **只需修改** `package.json` 中的版本号，或者使用 `pnpm version:*` 命令（如果手动修改了 `package.json`，记得运行 `pnpm sync-version`）。
-3. 每次构建前会自动同步版本号，确保所有文件版本一致。
-4. 更新版本后记得同步更新 `CHANGELOG.md`，确保内容与版本号完全对应。
+上游的全平台构建脚本与发布技能仍保留供学习，其 `dev → master` 发版规则不作为本学习分支的默认流程。其他平台的产物不属于本次发布验收范围。

@@ -86,7 +86,7 @@ describe.each(["document", "shadow root"])(
       act(() =>
         root.render(
           <ContentFab
-            fabConfig={{ x: 0, y: 100, edge: "left" }}
+            fabConfig={{ x: 0, y: 100, edge: "left", fabClickAction: 0 }}
             processActions={processActions}
             getSelectionEnabled={() => false}
           />

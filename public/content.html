@@ -1,24 +1,144 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>%REACT_APP_NAME%</title>
-  </head>
-
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>KISS 学习版 · A slower way to learn</title>
+  <style>
+    :root { --ink:#22382d; --muted:#6d7971; --paper:#f9f8f2; --line:#d9ded3; --green:#386f50; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.8 Georgia,"Times New Roman","Songti SC",serif; }
+    a { color:var(--green); text-underline-offset:4px; }
+    .top { max-width:1160px; padding:26px 38px; margin:auto; display:flex; justify-content:space-between; gap:20px;
+      font:12px/1.5 -apple-system,BlinkMacSystemFont,sans-serif; letter-spacing:.13em; }
+    .brand { font-weight:700; font-size:15px; letter-spacing:-.02em; }
+    .brand span { display:inline-block; background:#dbe6d5; padding:0 7px; border-radius:5px; margin-right:6px; }
+    .top small { color:var(--muted); }
+    main { max-width:1084px; margin:auto; padding:25px 38px 70px; }
+    .hero { display:grid; grid-template-columns:1.35fr .65fr; gap:50px; align-items:center; padding:30px 0 48px; border-bottom:1px solid var(--line); }
+    .eyebrow { font:11px/1.6 -apple-system,BlinkMacSystemFont,sans-serif; letter-spacing:.18em; text-transform:uppercase; color:var(--green); }
+    h1 { font-size:clamp(42px,5.4vw,68px); line-height:1.08; font-weight:400; letter-spacing:-.045em; margin:18px 0; }
+    .lede { color:var(--muted); font-size:18px; max-width:520px; line-height:1.55; }
+    .meta { font:12px/1.6 -apple-system,BlinkMacSystemFont,sans-serif; color:var(--muted); margin-top:27px; }
+    .art { position:relative; aspect-ratio:1; display:grid; place-items:center; border-radius:50%; background:#e3e9d9; overflow:hidden; }
+    .art:before,.art:after { content:""; position:absolute; width:220px; height:150px; border:1px solid #8aab87; border-radius:50%; transform:rotate(-35deg); }
+    .art:after { transform:rotate(35deg); }
+    .book { width:145px; height:170px; background:#386748; transform:rotate(-12deg); border-radius:4px 10px 10px 4px;
+      box-shadow:8px 9px 0 #c6d5b8,12px 13px 0 #728866; display:grid; place-items:center; color:#f7f7e7; z-index:1; }
+    .book div { border:1px solid #91ad83; width:110px; height:130px; display:flex; flex-direction:column; justify-content:center; text-align:center; font-size:30px; line-height:1.4; }
+    .book small { font:9px/2 sans-serif; letter-spacing:.16em; }
+    .layout { display:grid; grid-template-columns:180px minmax(0,660px); gap:70px; padding-top:38px; }
+    aside { font:12px/1.7 -apple-system,BlinkMacSystemFont,sans-serif; color:var(--muted); }
+    aside strong { display:block; color:var(--ink); margin-bottom:8px; }
+    aside a { display:block; margin:8px 0; text-decoration:none; }
+    .aside-note { margin-top:30px; padding-top:18px; border-top:1px solid var(--line); }
+    article > p:first-child:first-letter { font-size:57px; float:left; line-height:.9; padding:10px 9px 0 0; color:var(--green); }
+    h2 { font-size:29px; font-weight:400; line-height:1.25; margin:40px 0 15px; letter-spacing:-.025em; }
+    p { margin:0 0 21px; }
+    blockquote { border-left:3px solid #b1c6a3; padding:3px 0 3px 23px; margin:30px 0; font-size:23px; color:var(--green); font-style:italic; }
+    li { margin:8px 0; }
+    .chinese { border:1px solid var(--line); border-radius:12px; padding:22px 24px 4px; margin:28px 0; background:#f0f2e8; }
+    .chinese .eyebrow { margin:0 0 8px; }
+    .chinese h2 { margin:4px 0 14px; font-size:25px; }
+    code { font:13px/1.5 ui-monospace,SFMono-Regular,monospace; background:#e8ecdf; border-radius:3px; padding:2px 5px; }
+    pre { background:#23372d; color:#d9e7d6; border-radius:10px; padding:20px; overflow:auto; }
+    pre code { background:none; padding:0; color:inherit; }
+    .lab { margin-top:35px; border:1px solid var(--line); border-radius:12px; padding:24px; background:white; font:14px/1.6 -apple-system,BlinkMacSystemFont,sans-serif; }
+    .lab h2 { font:600 18px/1.4 -apple-system,BlinkMacSystemFont,sans-serif; margin:0 0 12px; }
+    label { display:block; font-size:12px; color:var(--muted); margin:14px 0 6px; }
+    input,textarea,[contenteditable] { border:1px solid #cad3c6; border-radius:7px; padding:11px; width:100%; font:14px/1.5 sans-serif; color:var(--ink); background:#fcfcf8; }
+    textarea { min-height:70px; resize:vertical; }
+    button { cursor:pointer; border:0; background:var(--green); color:white; border-radius:7px; padding:11px 15px; font:13px/1.4 sans-serif; margin-top:16px; }
+    .test-result { margin-top:10px; font-size:12px; }
+    footer { padding:25px 0; margin-top:45px; border-top:1px solid var(--line); font:11px/1.6 sans-serif; color:var(--muted); display:flex; justify-content:space-between; }
+    @media(max-width:720px) { .top,main { padding-left:22px; padding-right:22px; }.hero { grid-template-columns:1fr; gap:20px; }.art { display:none; }.layout { grid-template-columns:1fr; gap:12px; } aside { display:none; } }
+  </style>
+</head>
+<body>
+  <header class="top" translate="no"><div class="brand"><span>K</span>KISS 学习版</div><small>FIELD NOTES / 001 · READING DEMO</small></header>
+  <main>
+    <section class="hero">
+      <div>
+        <div class="eyebrow">A little curiosity, every day</div>
+        <h1>A slower way to learn.</h1>
+        <p class="lede">Reading in another language is an invitation to notice more. A good translation gives you a place to begin.</p>
+        <div class="meta" translate="no">KISS Translator 学习版 &nbsp;·&nbsp; 5 minute read &nbsp;·&nbsp; English + 中文</div>
+      </div>
+      <div class="art" aria-hidden="true"><div class="book"><div>A / 中<small>READ BETWEEN WORLDS</small></div></div></div>
+    </section>
+    <div class="layout">
+      <aside translate="no">
+        <strong>ON THIS PAGE</strong>
+        <a href="#notice">01 &nbsp; Start with noticing</a>
+        <a href="#practice">02 &nbsp; Build a small habit</a>
+        <a href="#chinese">03 &nbsp; 换个方向阅读</a>
+        <a href="#lab">04 &nbsp; Try it yourself</a>
+        <div class="aside-note">这是本地验收页面。选择扩展的“翻译网页”可保留英文并显示中文译文。将目标语言切换为 English，可测试下方中文段落。</div>
+      </aside>
+      <article>
+        <p id="network-probe">A translation tool can still be useful when Google services are unavailable.</p>
+        <p>When we learn something new, we often look for the fastest route. We collect apps, save articles, and promise ourselves that tomorrow will be different. Yet understanding usually begins with a smaller act: paying attention to one useful idea.</p>
+        <p>A bilingual page can make that act easier. You can read a paragraph in English, check the Chinese translation, and then return to the original. The goal is to stay curious long enough to understand what the writer is trying to say.</p>
+        <h2 id="notice">Start with noticing</h2>
+        <p>Choose a short article about something you already enjoy. Gardening, software, cooking, and music all offer familiar ideas in unfamiliar words. Follow an <a href="https://developer.mozilla.org/en-US/docs/Web/HTML" target="_blank" rel="noreferrer">inline link about HTML</a> if you want to explore how web pages are structured. The link should still work after translation.</p>
+        <p>Before opening a dictionary, ask yourself what you can infer from the surrounding sentences. A new word is easier to remember when it belongs to a concrete situation. Write down the sentence, rather than a lonely definition.</p>
+        <blockquote>Understanding grows when we give an idea enough space to become familiar.</blockquote>
+        <p>Translations are useful reading aids. They can also miss tone, context, or a technical meaning. When a sentence seems surprising, compare the original with the translation and look for the source of the difference.</p>
+        <h2 id="practice">Build a small habit</h2>
+        <p>You do not need a complicated system. A simple routine creates a clear place to start and a gentle reason to return.</p>
+        <ul>
+          <li>Read one paragraph without translating it first.</li>
+          <li>Check the translation and choose one expression worth remembering.</li>
+          <li>Explain the main idea in your own words.</li>
+          <li>Return tomorrow and see what you can recall.</li>
+        </ul>
+        <p>In a programming article, expressions such as <code>const message = "Hello, world";</code> should remain intact. A translation tool should help with the surrounding prose while preserving examples you may want to run.</p>
+        <pre><code>// This code block must stay unchanged.
+const message = "Hello, world!";
+console.log(message);
+// 代码块中的中文也应保持原样。</code></pre>
+        <section class="chinese" lang="zh-CN" id="chinese">
+          <div class="eyebrow" translate="no">READ IN THE OTHER DIRECTION</div>
+          <h2>换个方向，再读一次</h2>
+          <p>学习一门语言，不只是把一个词换成另一个词。我们也在学习另一种表达习惯：作者先说什么，哪些内容留给读者推断，以及一句简单的话如何传达态度。</p>
+          <p>试着把这两段中文翻译成英文，再观察译文的句子结构。你可以保留原文、比较措辞，然后用自己的话重新表达。翻译结果适合作为理解和练习的起点。</p>
+          <p>离线模式适合希望在断网环境中阅读，或希望文本留在本机处理的场景。在线模式可以连接你选择的翻译服务。切换前，先确认当前选择的引擎以及所需的配置。</p>
+        </section>
+        <h2>Make room for questions</h2>
+        <p>At the end of a reading session, write one question that the article left unanswered. A question gives your next session a direction. Over time, these small questions become a map of what you understand and what you still want to explore.</p>
+        <p>Progress can be quiet. Today you may understand a phrase that stopped you last week. Tomorrow you may notice a subtle difference between two translations. That is enough to keep going.</p>
+        <section class="lab" id="lab" translate="no">
+          <h2>手动验收区 · 内容应保持原样</h2>
+          <p>这一整块标记了 translate="no"。整页翻译或划选这里的内容，都不应将它发送给翻译服务。</p>
+          <label for="note">普通输入框</label>
+          <input id="note" value="This private input must never be translated.">
+          <label for="password">密码输入框</label>
+          <input id="password" type="password" value="demo-only-not-a-real-password">
+          <label for="draft">草稿</label>
+          <textarea id="draft">My unfinished writing should remain private and editable.</textarea>
+          <label for="editor">可编辑区域</label>
+          <div id="editor" contenteditable="true" role="textbox" aria-label="可编辑示例">Edit this sentence to test that the page still works.</div>
+          <button id="test-button" type="button">测试原页面按钮</button>
+          <div class="test-result" id="test-result" role="status">按钮尚未点击</div>
+        </section>
+        <section aria-label="独立排除测试" style="margin-top:25px">
+          <p translate="no">This paragraph explicitly opts out of translation.</p>
+          <div contenteditable="true" role="textbox" aria-label="独立编辑区"><p>This editable paragraph must not be sent to a translation provider.</p></div>
+          <p hidden>This hidden paragraph must never be sent to a translation provider.</p>
+          <p aria-hidden="true" style="display:none">This aria-hidden text must never be translated.</p>
+          <p style="visibility:hidden">This invisible text must never be translated.</p>
+        </section>
+      </article>
     </div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
+    <footer translate="no"><span>KISS 学习版 · 本地示例，正文为原创测试内容</span><span>READ · COMPARE · LEARN</span></footer>
+  </main>
+  <script>
+    let count = 0;
+    document.getElementById("test-button").addEventListener("click", () => {
+      count += 1;
+      document.getElementById("test-result").textContent = `按钮已点击 ${count} 次，原页面事件仍然有效。`;
+    });
+  </script>
+</body>
 </html>

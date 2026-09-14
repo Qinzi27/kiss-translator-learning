@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { policyFetch } from "../../libs/networkPolicy";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -229,9 +230,12 @@ export default function SubtitleSegmentationPlayground({
   // 页面加载时只拉取轻量索引，实际样本等用户选择后再下载。
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${SAMPLE_BASE_URL}/index.json?v=${process.env.REACT_APP_VERSION}`, {
-      signal: controller.signal,
-    })
+    policyFetch(
+      `${SAMPLE_BASE_URL}/index.json?v=${process.env.REACT_APP_VERSION}`,
+      {
+        signal: controller.signal,
+      }
+    )
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
@@ -268,7 +272,7 @@ export default function SubtitleSegmentationPlayground({
     setProgress(null);
     setError("");
     try {
-      const response = await fetch(
+      const response = await policyFetch(
         `${SAMPLE_BASE_URL}/${sample.path}?hash=${sample.sha256.slice(0, 16)}`,
         { signal: controller.signal }
       );

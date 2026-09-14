@@ -1,6 +1,12 @@
 packages:
   - "."
 
+# Keep the lockfile's dependency overrides effective with pnpm 11 as well.
+overrides:
+  fast-xml-parser: "4.5.4"
+  shell-quote: "1.8.4"
+  websocket-driver: "0.7.5"
+
 allowBuilds:
   core-js: true
   core-js-pure: true

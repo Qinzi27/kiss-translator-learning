@@ -1,9 +1,14 @@
 import queryString from "query-string";
+import { resolveLearningAiApi, learningAiBodyOptions } from "../config/aiServices";
+import { buildTranslationSkillMessages } from "../config/translationSkill";
+import { requestWebAiTranslation } from "../libs/webAiClient";
+import { translateMyMemory } from "./myMemory";
 import {
   OPT_TRANS_GOOGLE,
   OPT_TRANS_GOOGLE_2,
   OPT_TRANS_GOOGLE_CLOUD,
   OPT_TRANS_MICROSOFT,
+  OPT_TRANS_MYMEMORY,
   OPT_TRANS_AZUREAI,
   OPT_TRANS_DEEPL,
   OPT_TRANS_DEEPLFREE,
@@ -832,6 +837,7 @@ const genOpenAI = ({
   apiType,
   thinkingMode,
   thinkingEffort,
+  learningAi,
 }) => {
   const userMsg = {
     role: "user",
@@ -848,11 +854,13 @@ const genOpenAI = ({
       userMsg,
     ],
     temperature,
-    max_completion_tokens: maxTokens,
+    ...(learningAi ? { max_tokens: maxTokens } : { max_completion_tokens: maxTokens }),
     stream: useStream,
   };
 
-  applyThinkingParameters(body, {
+  if (learningAi) {
+    Object.assign(body, learningAiBodyOptions({ learningAi, model }));
+  } else applyThinkingParameters(body, {
     apiType,
     url,
     model,
@@ -1387,6 +1395,10 @@ const genInit = ({
  * @returns
  */
 export const genTransReq = async ({ reqHook, ...args }) => {
+  if (args.learningAi) {
+    args = resolveLearningAiApi(args);
+    reqHook = "";
+  }
   const {
     apiType,
     apiSlug,
@@ -1465,6 +1477,17 @@ export const genTransReq = async ({ reqHook, ...args }) => {
           glossary,
           aiTerms,
         });
+  }
+
+  if (args.learningAi && !events) {
+    if (texts.length !== 1) throw new Error("AI 翻译技能每次处理一段原文。");
+    const messages = buildTranslationSkillMessages({
+      text: texts[0], fromLang, toLang,
+      preferences: args.learningAi.preferences,
+      glossary: Object.entries(glossary || {}).map(([key, value]) => `${key}: ${value}`).join("\n"),
+    });
+    args.systemPrompt = messages.systemPrompt;
+    args.userPrompt = messages.userPrompt;
   }
 
   const {
@@ -1989,6 +2012,33 @@ export async function* handleTranslate(
   }
 ) {
   if (signal?.aborted) return;
+  apiSetting = resolveLearningAiApi(apiSetting);
+  if (apiSetting.apiType === OPT_TRANS_MYMEMORY) {
+    for (let id = 0; id < texts.length; id++) {
+      const result = await translateMyMemory(texts[id], {
+        fromLang,
+        toLang,
+        textFormat,
+        signal,
+        httpTimeout: apiSetting.httpTimeout,
+        fetchInterval: apiSetting.fetchInterval,
+      });
+      if (signal?.aborted) return;
+      yield { id, result: [result.text, result.from] };
+    }
+    return;
+  }
+  if (apiSetting.learningAi?.transport === "web") {
+    for (let id = 0; id < texts.length; id++) {
+      const translated = await requestWebAiTranslation({
+        apiSlug: apiSetting.apiSlug, text: texts[id], fromLang, toLang,
+        glossary: Object.entries(glossary || {}).map(([key, value]) => `${key}: ${value}`).join("\n"),
+      }, { signal });
+      if (signal?.aborted) return;
+      yield { id, result: [translated, fromLang === "auto" ? "" : fromLang] };
+    }
+    return;
+  }
 
   let history = null;
   let hisMsgs = [];

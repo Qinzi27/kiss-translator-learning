@@ -1,196 +1,72 @@
-# KISS Translator
+# KISS Translator · Bilingual Learning Edition
 
-[English](README.en.md) | [中文](README.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+[中文](README.md) · [Release downloads](../../releases) · [Setup guide](START-HERE.md) · [Validation record](VALIDATION.md)
 
-A simple, open source [bilingual translation extension & Greasemonkey script](https://github.com/fishjar/kiss-translator).
+Click the floating button on a regular webpage to keep the original text and append a translation below it. Click again to hide the translation. This edition focuses on English–Chinese reading, with online services and a separately prepared local Argos engine.
 
-[kiss-translator.webm](https://github.com/fishjar/kiss-translator/assets/1157624/f7ba8a5c-e4a8-4d5a-823a-5c5c67a0a47f)
+Current version: **`2.0.32-learning.3`**.
 
-## Features
+This is an independent learning fork of [KISS Translator by Gabe / fishjar and contributors](https://github.com/fishjar/kiss-translator), based on version 2.0.32. **It is not an official release from the upstream author.** Upstream attribution and the [GPL-3.0 license](LICENSE) are retained.
 
-- [x] Keep it simple, smart
-- [x] Open source
-- [x] Adapt to common browsers
-  - [x] Chrome/Edge
-  - [x] Firefox
-  - [x] Kiwi (Android)
-  - [x] Orion (iOS)
-  - [x] Safari
-  - [x] Thunderbird
-- [x] Supports multiple translation services
-  - [x] Google/Microsoft
-  - [x] Tencent/Volcengine
-  - [x] OpenAI/Gemini/Claude/Ollama/DeepSeek/OpenRouter/OrcaRouter
-  - [x] DeepL/DeepLX
-  - [x] AzureAI / CloudflareAI
-  - [x] Chrome built-in AI translation (BuiltinAI)
-- [x] Covers common translation scenarios
-  - [x] Webpage bilingual translation
-  - [x] Input-box translation
-    - Instantly translate text in input fields into other languages via shortcut keys
-  - [x] Text selection translation
-    - [x] Open translation popup on any page, support multiple translation services for comparison
-    - [x] English dictionary lookup
-    - [x] Save vocabulary
-  - [x] Hover translation
-  - [x] YouTube subtitle translation
-    - Support translating video subtitles with any translation service and display bilingually
-    - Built-in basic subtitle merging and sentence-splitting algorithm to improve translation quality
-    - Supports AI-powered sentence segmentation for even better translation
-    - Custom subtitle style
-- [x] Supports diverse translation modes
-  - [x] Supports both automatic text recognition and manual rule modes
-    - Automatic text recognition mode allows most sites to be translated fully without writing rules
-    - Manual rule mode enables extreme optimization for specific sites
-  - [x] Custom translation styling
-  - [x] Supports rich-text translation and rendering, preserving links and other text styles where possible
-  - [x] Option to show only translation (hide original text)
-- [x] Advanced translation API features
-  - [x] With custom API support, theoretically works with any translation service
-  - [x] Batch aggregation of translation requests
-  - [x] Supports streaming for real-time translation results
-  - [x] Supports AI conversation context memory to improve translation quality
-  - [x] Custom AI terminology dictionary
-  - [x] All APIs support hooks and custom parameters for advanced usage
-- [x] Cross-client data synchronization
-  - [x] KISS-Worker（cloudflare/docker）
-  - [x] WebDAV
-- [x] Custom translation rules
-  - [x] Rule subscription/rule sharing
-  - [x] Customized terminology
-- [x] Custom shortcut keys
-  - `Alt+Q` Toggle Translation
-  - `Alt+C` Toggle Styles
-  - `Alt+K` Open Setting Popup
-  - `Alt+S` Open Translate Popup / Translate Selected Text
-  - `Alt+O` Open Options Page
-  - `Alt+I` Input Box Translation
+## What is included
 
-## Install
+- **MyMemory:** limited anonymous online translation without an account, email or API key. Real English–Chinese requests and bilingual rendering in the browser development environment have been verified. It is not a chat model and does not use the AI translation Skill.
+- **Eight AI API presets:** Doubao, Kimi, DeepSeek, Qwen, GLM, Tencent Hunyuan, SiliconFlow and OpenRouter. Bring your own key and enabled model; free models, trial credits and paid API usage are distinct.
+- **Custom AI API:** an OpenAI Chat Completions compatible endpoint, plus a fixed translation Skill with optional terminology and style preferences.
+- **Local Argos:** English–Chinese inference after downloading dependencies and models. Neither release ZIP contains those dependencies or models.
+- **Experimental Doubao / Kimi webpage mode:** uses the same browser profile's login session in a dedicated background tab. Real logged-in website compatibility has not been validated.
 
-> Note: For the following reasons, it is recommended to use browser extensions first
->
-> - Browser extensions have more complete functions (local language recognition, context menu, etc.)
-> - Grease Monkey script will encounter more usage problems (cross domain issues, script conflicts, etc.)
+## Install or update
 
-- [x] Browser extension
-  - [x] Chrome [Installation address](https://chrome.google.com/webstore/detail/kiss-translator/bdiifdefkgmcblbcghdlonllpjhhjgof?hl=en)
-    - [x] Kiwi (Android)
-    - [x] Orion (iOS)
-  - [x] Edge [Installation address](https://microsoftedge.microsoft.com/addons/detail/%E7%AE%80%E7%BA%A6%E7%BF%BB%E8%AF%91/jemckldkclkinpjighnoilpbldbdmmlh?hl=en)
-  - [x] Firefox [Installation address](https://addons.mozilla.org/en-US/firefox/addon/kiss-translator/)
-  - [ ] Safari
-    - [ ] Safari (Mac)
-    - [ ] Safari (iOS)
-  - [x] Thunderbird [Download address](https://github.com/fishjar/kiss-translator/releases)
-- [x] GreaseMonkey Script
-  - [x] Chrome/Edge/Firefox ([Tampermonkey](https://www.tampermonkey.net/)/[Violentmonkey](https://violentmonkey.github.io/)) [Installation link](https://fishjar.github.io/kiss-translator/kiss-translator.user.js)
-    - [Greasy Fork](https://greasyfork.org/zh-CN/scripts/472840-kiss-translator)
-  - [x] iOS Safari ([Userscripts Safari](https://github.com/quoid/userscripts)) [Installation link](https://fishjar.github.io/kiss-translator/kiss-translator-ios-safari.user.js)
+1. Download `kiss-translator-learning-chrome.zip` from this repository's [Releases](../../releases) and extract it.
+2. Open `chrome://extensions` or `edge://extensions` and enable Developer mode.
+3. Choose **Load unpacked** and select the extracted **`chrome` folder**, which directly contains `manifest.json`.
+4. Refresh a regular webpage and click the floating translation button, or press `Alt + Q` (`Option + Q` on Mac).
 
-## Associated Projects
+The same Release provides separate `SHA256SUMS.txt` and `release-manifest.json` files. Verify the downloaded extension or source ZIP against its SHA-256 checksum; the manifest records the version, source commit and artifact details. See [release notes](RELEASE-NOTES.md).
 
-- Data synchronization service: [https://github.com/fishjar/kiss-worker](https://github.com/fishjar/kiss-worker)
-  - Data synchronization service available for this project.
-  - Can also be used to share personal private rule lists.
-  - Deploy by yourself, manage by yourself, data is private.
-- Community subscription rules: [https://github.com/fishjar/kiss-rules](https://github.com/fishjar/kiss-rules)
-  - Provides the latest and most complete list of subscription rules maintained by the community.
-  - Help with rules-related issues.
+To update, keep the loaded folder path, replace its extension files with the new version, click **Reload** in the extension manager, and refresh reading tabs. Existing settings usually remain; missing new presets can be added without clearing them. The upstream store extension is a different release.
 
-## Frequently Asked Questions
+Open **AI 翻译向导** in Options to try the MyMemory card, add a service, or configure an AI API. Tests send a disclosed synthetic sentence only when clicked. Saving an AI configuration does not send that sentence. After adding a service, refresh the reading page and select it in the translation panel. See the [Chinese setup guide](START-HERE.md) for global rules and offline preparation.
 
-### How to Set Keyboard Shortcuts
+## Build and test
 
-Set this in the extension management page, for example:
-
-- chrome [chrome://extensions/shortcuts](chrome://extensions/shortcuts)
-- firefox [about:addons](about:addons)
-
-### What is the priority order of rule settings?
-
-Personal Rules > Subscription Rules > Global Rules
-
-Among these, Global Rules have the lowest priority but are very important as they serve as the default rules.
-
-### API (Ollama, etc.) Test Failure
-
-Common reasons for API test failures include:
-
-- Incorrect address:
-  - For example, `Ollama` has a native API address and an `Openai`-compatible address. This plugin currently supports the `Openai`-compatible address and does not support the `Ollama` native API address.
-- Some AI models do not support batch translation:
-  - In this case, you can choose to disable batch translation or use a custom API.
-  - Alternatively, you can use a custom API. For details, please refer to: [Custom API Example Documentation](https://github.com/fishjar/kiss-translator/blob/master/custom-api_v2.md)
-- Some AI models have inconsistent parameters:
-  - For example, the parameters of the `Gemini` native API are highly inconsistent. Some model versions do not support certain parameters, leading to errors.
-  - In this case, you can modify the request body using a `Hook`, or replace it with `Gemini2` (an OpenAI-compatible address).
-- The server restricts cross-origin access, returning a 403 error:
-  - For example, `Ollama` requires adding the environment variable `OLLAMA_ORIGINS=*` when starting. See: https://github.com/fishjar/kiss-translator/issues/174
-
-### Custom API doesn't work in Tampermonkey scripts
-
-Tampermonkey scripts require adding domains to the whitelist; otherwise, requests cannot be sent.
-
-### How to set up a hook function for a custom API
-
-Custom APIs are very powerful and flexible, and can theoretically connect to any translation API.
-
-Example reference: [custom-api_v2.md](https://github.com/fishjar/kiss-translator/blob/master/custom-api_v2.md)
-
-### How to directly access the Tampermonkey script settings page
-
-Settings page address: https://fishjar.github.io/kiss-translator/options.html
-
-## Future Plans 
-
- This is a side project with no strict timeline. Community contributions are welcome. The following are preliminary feature directions:
-
-- [x] **Batch Text Requests**: Optimize request strategy to reduce translation API calls and improve performance.
-- [x] **Enhanced Rich Text Translation**: Support accurate translation of complex page structures and rich text content.
-- [x] **Advanced Custom/AI Interfaces**: Add support for streaming, context memory, multi-turn conversations, and other advanced AI features.
-- [x] **Fallback English Dictionary**: When translation services fail, fall back to a local dictionary lookup.
-- [x] **Improved YouTube Subtitle Support**: Enhance merging and translation experience for streaming subtitles, reducing sentence fragmentation.
-- [ ] **Upgraded Rule Collaboration System**: Introduce more flexible rule sharing, version management, and community review processes.
-
- If you're interested in any of these directions, feel free to discuss in [Issues](https://github.com/fishjar/kiss-translator/issues) or submit a PR!
-
-## Development Guidelines
+From the repository root or extracted source package, with Node.js and pnpm installed:
 
 ```sh
-git clone https://github.com/fishjar/kiss-translator.git
-cd kiss-translator
-git checkout dev # Submit a PR suggestion to push to the dev branch
-pnpm install
-pnpm build
+pnpm install --frozen-lockfile
+pnpm build:chrome
 ```
 
-### External Trigger Example
+The existing build was validated with Node.js 20 / pnpm 11. Load `build/chrome`. An extracted source ZIP can build the extension, but it has no `.git` directory. The packaging script needs Git's file inventory, so use a cloned repository to regenerate release packages. After building in that clone, run:
 
-```js
-// `toggle_translate`   Toggle translation
-// `toggle_styles`      Toggle styles
-// `toggle_popup`       Open/close control panel
-// `toggle_transbox`    Open/close translation popup
-// `toggle_hover_node`  Translate hovered paragraph
-// `input_translate`    Translate input box
-window.dispatchEvent(new CustomEvent("kiss_translator", {detail: { action: "toggle_translate" }}));
+```sh
+python3 src/scripts/package-learning.py
 ```
 
-## Discussion
+The script writes the extension and corresponding GPL source ZIPs, plus separate checksum and release manifest files, into `releases/`. See [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) for the release workflow.
 
-- Join [Telegram Group](https://t.me/+RRCu_4oNwrM2NmFl)
+For targeted automated tests, offline setup and optional live API checks, see [VALIDATION.md](VALIDATION.md). Live checks send synthetic text and consume the selected service's quota; normal automated tests use mocks.
 
-## Appreciate
+## Validation limits
 
-![appreciate](https://github.com/fishjar/kiss-translator/assets/1157624/ebaecabe-2934-4172-8085-af236f5ee399)
+Real MyMemory and Argos inference have been checked, including Argos in a macOS process denied network access by the operating system. Browser checks used the **Web development environment**. The final Chrome package has been built but has not been installed and accepted in a real extension environment.
 
-## Sponsors
+The eight AI APIs were not called with user account keys. Background webpage tests use DOM fixtures, not real logged-in sessions. No claim is made about mainland China network reachability, indefinite availability or unlimited free usage. Splitting rich text can preserve formatting while reducing translation fluency.
 
-<p align="center">
-<a href="https://platform.ephone.ai/" target="_blank">
-<img src="https://platform.ephone.ai/logo-e.png" width="96" /><br />
-<b>ePhone AI</b><br />
-An AI model API relay and aggregation platform for developers, supporting multiple large models such as OpenAI, Claude, Gemini, DeepSeek, and GLM.
-</a>
-</p>
+The offline policy restricts the extension's built-in request layer. It does not turn cloud services into local models or control the webpage's own network traffic. Prepare models and load or save the page before offline use.
+
+## Documentation and attribution
+
+- [START-HERE.md](START-HERE.md): installation, service switching and Argos preparation.
+- [AI-SERVICES.md](AI-SERVICES.md): API configuration, billing labels and experimental webpage mode.
+- [TRANSLATION-SKILL.md](TRANSLATION-SKILL.md): fixed translation instructions and limits.
+- [VALIDATION.md](VALIDATION.md): evidence, test results and reproduction commands.
+- [offline/README.md](offline/README.md): Argos preparation, local service and offline verification.
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): installation and translation troubleshooting.
+- [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md): versioning, packaging and publication.
+- [RELEASE-NOTES.md](RELEASE-NOTES.md): changes, release artifacts and checksums.
+- [MyMemory live receipt](validation/free-api-live.json) and [Argos offline receipt](offline/verified-offline.json).
+- [Upstream base commit](https://github.com/fishjar/kiss-translator/commit/2656f564dde5b271a8d3fb31e951a8457e8df41c) and [its original README](https://github.com/fishjar/kiss-translator/blob/2656f564dde5b271a8d3fb31e951a8457e8df41c/README.md).
+
+Learning-edition changes remain under [GPL-3.0](LICENSE). Releases provide the corresponding source and license. The source ZIP excludes Git history, account configuration, dependency folders and downloaded models. Please report learning-edition issues to this repository.

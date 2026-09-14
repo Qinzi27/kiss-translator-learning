@@ -1,6 +1,10 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import Layout, { fetchLatestVersion, isWideOptionsPage } from "./Layout";
+import { getSettingWithDefault } from "../../libs/storage";
+jest.mock("../../libs/storage", () => ({
+  getSettingWithDefault: jest.fn(async () => ({ networkPolicy: "normal" })),
+}));
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -12,6 +16,7 @@ beforeEach(() => {
 
 test("uses the wide content rail for dense workspace pages", () => {
   expect(isWideOptionsPage("/apis")).toBe(true);
+  expect(isWideOptionsPage("/ai-services")).toBe(true);
   expect(isWideOptionsPage("/playground")).toBe(true);
   expect(isWideOptionsPage("/prompts")).toBe(true);
   expect(isWideOptionsPage("/apis/")).toBe(true);
@@ -71,6 +76,7 @@ jest.mock("./Navigator", () => {
 
 test.each([
   ["/apis/", "options_translation_services", true],
+  ["/ai-services/", "AI 翻译向导", true],
   ["/prompts///", "prompt_management", true],
   ["/playground/", "Playground", true],
   ["/rules/", "options_web_translation", false],
@@ -252,6 +258,7 @@ describe("fetchLatestVersion", () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
+    getSettingWithDefault.mockResolvedValue({ networkPolicy: "normal" });
     process.env.REACT_APP_VERSION_URL = "https://primary.example/version.txt";
     process.env.REACT_APP_VERSION_URL_GITHUB =
       "https://github.example/version.txt";
@@ -294,5 +301,11 @@ describe("fetchLatestVersion", () => {
 
     await expect(fetchLatestVersion()).rejects.toBe(abortError);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("offline blocks automatic version checks without trying a fallback host", async () => {
+    getSettingWithDefault.mockResolvedValue({ networkPolicy: "offline" });
+    await expect(fetchLatestVersion()).rejects.toThrow("仅本机离线");
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,10 @@
 
 # dependencies
 /node_modules
+/.offline/
+/releases/
+/:memory:.ses
+__pycache__/
 /.pnpm-store/
 /.pnp
 /.obsidian
@@ -38,3 +42,7 @@ package-lock.json
 !.agents/skills/release-kiss-translator/
 !.agents/skills/release-kiss-translator/**
 .claude
+
+# Local development handoffs and logs
+/PAUSED-HANDOFF.md
+/dev-server-check.log

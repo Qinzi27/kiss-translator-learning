@@ -1,3 +1,4 @@
+import { resolveLearningAiApi } from "./aiServices";
 import {
   defaultNobatchPrompt,
   defaultNobatchUserPrompt,
@@ -899,6 +900,7 @@ export function resolveApiPromptSettings(
   if (!apiSetting) {
     return apiSetting;
   }
+  if (apiSetting.learningAi) return resolveLearningAiApi(apiSetting);
 
   const cleanedApiSetting = removeLegacyApiPromptIds(apiSetting);
   const nextApiSetting =

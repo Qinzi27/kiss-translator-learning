@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import ApiRoundedIcon from "@mui/icons-material/ApiRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import BookmarksRoundedIcon from "@mui/icons-material/BookmarksRounded";
 import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
 import CloudSyncRoundedIcon from "@mui/icons-material/CloudSyncRounded";
@@ -76,6 +77,12 @@ export default function Navigator({ open, isMobile = false, onClose }) {
       {
         label: i18n("options_group_services"),
         items: [
+          [
+            "ai-services",
+            "AI 翻译向导",
+            "/ai-services",
+            AutoAwesomeRoundedIcon,
+          ],
           [
             "apis",
             i18n("options_translation_services"),

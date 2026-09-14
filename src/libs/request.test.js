@@ -17,12 +17,12 @@ jest.mock("./log", () => ({
 
 import { fetchGM, fetchPatcher, normalizeHttpTimeout } from "./request";
 
-const loadRequestWithClient = (clientMock) => {
+const loadRequestWithClient = (clientMock, networkPolicy = "normal") => {
   jest.resetModules();
   jest.doMock("./client", () => clientMock);
   jest.doMock("./storage", () => ({
     getSettingWithDefault: jest.fn(() =>
-      Promise.resolve({ httpTimeout: 1000 })
+      Promise.resolve({ httpTimeout: 1000, networkPolicy })
     ),
   }));
   jest.doMock("../config", () => ({
@@ -40,7 +40,7 @@ const loadRequestWithClient = (clientMock) => {
 };
 
 const waitFor = async (condition) => {
-  for (let i = 0; i < 5 && !condition(); i += 1) {
+  for (let i = 0; i < 12 && !condition(); i += 1) {
     await Promise.resolve();
   }
   expect(condition()).toBe(true);
@@ -66,6 +66,54 @@ describe("fetchPatcher", () => {
   afterEach(() => {
     delete window.KISS_GM;
     jest.restoreAllMocks();
+  });
+
+  test("background HTTP requests enforce saved offline policy despite caller overrides", async () => {
+    const { fetchHandle } = loadRequestWithClient(
+      { isExt: true, isGm: false },
+      "offline"
+    );
+    global.fetch = jest.fn();
+    await expect(
+      fetchHandle({
+        input: "https://edge.microsoft.com/translate",
+        init: { method: "POST" },
+        opts: { networkPolicy: "normal", httpTimeout: 1000 },
+      })
+    ).rejects.toThrow("仅本机离线");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test("web requests reach loopback services with redirects disabled", async () => {
+    const { fetchPatcher: webFetch } = loadRequestWithClient(
+      { isExt: false, isGm: false },
+      "offline"
+    );
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    await webFetch("http://127.0.0.1:5000/translate", {
+      redirect: "follow",
+      method: "POST",
+    });
+    expect(global.fetch.mock.calls[0][1]).toMatchObject({
+      redirect: "error",
+      method: "POST",
+    });
+  });
+
+  test("restricted userscript requests use native redirect protection instead of the GM bridge", async () => {
+    const { fetchPatcher: gmFetch } = loadRequestWithClient(
+      { isExt: false, isGm: true },
+      "offline"
+    );
+    window.KISS_GM = { xmlHttpRequest: jest.fn() };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    await gmFetch("http://localhost:5000/translate");
+    expect(window.KISS_GM.xmlHttpRequest).not.toHaveBeenCalled();
+    expect(global.fetch.mock.calls[0][1].redirect).toBe("error");
   });
 
   test("passes external abort signal to native fetch", async () => {

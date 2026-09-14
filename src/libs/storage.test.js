@@ -1,5 +1,6 @@
 import {
   STOKEY_SETTING,
+  STOKEY_FAB,
   STOKEY_SETTING_BACKUP_V1_BEFORE_V2,
   SETTINGS_VERSION_V2,
   SETTINGS_VERSION_V3,
@@ -8,7 +9,12 @@ import {
   OPT_TRANS_OPENAI,
   OPT_TRANS_TENCENT,
 } from "../config";
-import { getSettingWithDefault, runDataMigration } from "./storage";
+import {
+  getFabWithDefault,
+  getSettingWithDefault,
+  runDataMigration,
+  tryInitDefaultData,
+} from "./storage";
 
 // 存储测试不涉及流式解析，隔离 ESM-only 依赖以免 Jest 27 在加载阶段失败。
 jest.mock("@streamparser/json", () => ({ JSONParser: jest.fn() }));
@@ -45,6 +51,55 @@ describe("settings storage migration", () => {
     delete globalThis.GM_setValue;
     delete globalThis.GM_getValue;
     delete globalThis.GM_deleteValue;
+  });
+
+  test("fresh installations show the FAB and translate on a single click", async () => {
+    await expect(getFabWithDefault()).resolves.toMatchObject({
+      isHide: false,
+      fabClickAction: 1,
+      hideExceptionList: "",
+    });
+  });
+
+  test("fresh installation keeps the Chinese UI default even when the browser reports English", async () => {
+    // onInstalled historically passes the browser UI language to this initializer.
+    await tryInitDefaultData("en");
+    expect(readStoredJson(STOKEY_SETTING).uiLang).toBe("zh");
+  });
+
+  test("initialization preserves an existing language and offline preference exactly", async () => {
+    const savedSetting = {
+      version: SETTINGS_VERSION_V3,
+      uiLang: "ja",
+      networkPolicy: "offline",
+      customPreference: "keep",
+    };
+    window.localStorage.setItem(STOKEY_SETTING, JSON.stringify(savedSetting));
+    await tryInitDefaultData("en");
+    expect(readStoredJson(STOKEY_SETTING)).toEqual(savedSetting);
+  });
+
+  test("fills missing FAB preferences while keeping the saved position", async () => {
+    const savedFab = { x: 0, y: 120, edge: "left" };
+    window.localStorage.setItem(STOKEY_FAB, JSON.stringify(savedFab));
+
+    await expect(getFabWithDefault()).resolves.toMatchObject({
+      ...savedFab,
+      fabClickAction: 1,
+    });
+    expect(readStoredJson(STOKEY_FAB)).toEqual(savedFab);
+  });
+
+  test("preserves an existing FAB menu preference instead of applying the new default", async () => {
+    const savedFab = {
+      fabClickAction: 0,
+      isHide: true,
+      hideExceptionList: "example.com",
+    };
+    window.localStorage.setItem(STOKEY_FAB, JSON.stringify(savedFab));
+
+    await expect(getFabWithDefault()).resolves.toEqual(savedFab);
+    expect(readStoredJson(STOKEY_FAB)).toEqual(savedFab);
   });
 
   test("runDataMigration backs up raw v1 settings and stores current settings", async () => {

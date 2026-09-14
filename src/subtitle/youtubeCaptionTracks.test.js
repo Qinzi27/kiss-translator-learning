@@ -136,3 +136,6 @@ describe("youtubeCaptionTracks", () => {
     expect(result.captionTracks).toHaveLength(1);
   });
 });
+jest.mock("../libs/storage", () => ({
+  getSettingWithDefault: jest.fn(async () => ({ networkPolicy: "normal" })),
+}));

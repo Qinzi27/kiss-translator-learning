@@ -94,7 +94,8 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     jest.restoreAllMocks();
   });
 
-  function render(fabConfig = {}) {
+  // Exercise the retained menu mode explicitly; new installations translate directly.
+  function render(fabConfig = { fabClickAction: 0 }) {
     act(() =>
       root.render(
         <ContentFab
@@ -361,20 +362,32 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
 
   // Preserve the existing direct-translation behavior of fabClickAction === 1.
   // The action menu must not add an extra click for users with this setting.
-  test("fabClickAction=1 translates directly and never opens the menu", () => {
-    render({ fabClickAction: 1 });
+  test.each([
+    ["a fresh installation", {}],
+    ["fabClickAction=1", { fabClickAction: 1 }],
+  ])(
+    "%s toggles translation on each click and never opens the menu",
+    (_, config) => {
+      render(config);
 
-    expect(fab().getAttribute("aria-expanded")).toBeNull();
-    expect(fab().getAttribute("aria-haspopup")).toBeNull();
-    expect(fab().getAttribute("aria-controls")).toBeNull();
-    expect(fab().querySelector(".MuiSpeedDialIcon-root")).toBeNull();
-    expect(fab().querySelectorAll("svg")).toHaveLength(1);
-    clickFab();
+      expect(fab().getAttribute("aria-expanded")).toBeNull();
+      expect(fab().getAttribute("aria-haspopup")).toBeNull();
+      expect(fab().getAttribute("aria-controls")).toBeNull();
+      expect(fab().querySelector(".MuiSpeedDialIcon-root")).toBeNull();
+      expect(fab().querySelectorAll("svg")).toHaveLength(1);
+      clickFab();
 
-    expect(processActions).toHaveBeenCalledWith({ action: MSG_TRANS_TOGGLE });
-    expect(menuItems()).toHaveLength(0);
-    expect(draggableProps.expanded).toBe(false);
-  });
+      expect(processActions).toHaveBeenCalledWith({ action: MSG_TRANS_TOGGLE });
+      expect(menuItems()).toHaveLength(0);
+      expect(draggableProps.expanded).toBe(false);
+      clickFab();
+      expect(processActions).toHaveBeenCalledTimes(2);
+      expect(processActions).toHaveBeenLastCalledWith({
+        action: MSG_TRANS_TOGGLE,
+      });
+      expect(menuItems()).toHaveLength(0);
+    }
+  );
 
   test("a drag suppresses the click that ends it", () => {
     render();
@@ -395,7 +408,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     { x: 744, y: -28, edge: "top" },
     { x: 0, y: 572, edge: "bottom" },
   ])("closes an open menu when dragged from $edge", (fabConfig) => {
-    render(fabConfig);
+    render({ ...fabConfig, fabClickAction: 0 });
     clickFab();
     expect(draggableProps.expanded).toBe(true);
 
@@ -436,7 +449,12 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
 
     mockIsVideoFullscreen = true;
     act(() =>
-      root.render(<ContentFab fabConfig={{}} processActions={processActions} />)
+      root.render(
+        <ContentFab
+          fabConfig={{ fabClickAction: 0 }}
+          processActions={processActions}
+        />
+      )
     );
 
     expect(menuItems()).toHaveLength(0);

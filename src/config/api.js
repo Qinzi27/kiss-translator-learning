@@ -52,6 +52,7 @@ export const OPT_TRANS_GOOGLE = "Google"; // 谷歌翻译服务
 export const OPT_TRANS_GOOGLE_2 = "Google2"; // 谷歌翻译 pa 网页 API (支持大批量 HTML)
 export const OPT_TRANS_GOOGLE_CLOUD = "GoogleCloud"; // Google Cloud Translation Basic API
 export const OPT_TRANS_MICROSOFT = "Microsoft"; // 微软翻译服务
+export const OPT_TRANS_MYMEMORY = "MyMemory"; // 免 Key、匿名限量机器翻译
 export const OPT_TRANS_AZUREAI = "AzureAI"; // 微软 Azure 翻译
 export const OPT_TRANS_DEEPSEEK = "DeepSeek"; // DeepSeek 深度求索 AI 翻译
 export const OPT_TRANS_OPENCODEGO = "OpenCodeGo"; // OpenCode Go AI 翻译订阅服务
@@ -79,6 +80,7 @@ export const OPT_TRANS_OLLAMA = "Ollama"; // 本地部署 Ollama 模型翻译
 export const OPT_TRANS_OPENROUTER = "OpenRouter"; // OpenRouter 多模型聚合 API 翻译
 export const OPT_TRANS_ORCAROUTER = "OrcaRouter"; // OrcaRouter 多模型聚合 API 翻译
 export const OPT_TRANS_CUSTOMIZE = "Custom"; // 自定义翻译 API
+export const API_SLUG_LOCAL_ARGOS = "local_argos"; // 本机 Argos 服务的预置实例
 
 // 内置支持的翻译引擎
 export const OPT_ALL_TRANS_TYPES = [
@@ -87,6 +89,7 @@ export const OPT_ALL_TRANS_TYPES = [
   OPT_TRANS_GOOGLE_2,
   OPT_TRANS_GOOGLE_CLOUD,
   OPT_TRANS_MICROSOFT,
+  OPT_TRANS_MYMEMORY,
   OPT_TRANS_AZUREAI,
   // OPT_TRANS_BAIDU,
   OPT_TRANS_DEEPSEEK,
@@ -128,10 +131,11 @@ export const OPT_LANGDETECTOR_MAP = new Set(OPT_LANGDETECTOR_ALL);
 // 翻译引擎特殊集合：按能力将翻译引擎分类
 export const API_SPE_TYPES = {
   // 内置翻译引擎
-  builtin: new Set(OPT_ALL_TRANS_TYPES),
+  builtin: new Set([...OPT_ALL_TRANS_TYPES, API_SLUG_LOCAL_ARGOS]),
   // 机器翻译引擎（传统查表/神经网络翻译，不需要大型语言模型）
   machine: new Set([
     OPT_TRANS_MICROSOFT,
+    OPT_TRANS_MYMEMORY,
     OPT_TRANS_DEEPLFREE,
     OPT_TRANS_BAIDU,
     OPT_TRANS_TENCENT,
@@ -968,6 +972,11 @@ export const OPT_LANGS_SPEC_DEFAULT_UC = new Map(
   OPT_LANGS_FROM.map(([key]) => [key, key.toUpperCase()])
 );
 export const OPT_LANGS_TO_SPEC = {
+  [OPT_TRANS_MYMEMORY]: new Map([
+    ["en", "en"],
+    ["zh-CN", "zh-CN"],
+    ["zh-TW", "zh-TW"],
+  ]),
   [OPT_TRANS_BUILTINAI]: new Map([
     ...OPT_LANGS_SPEC_DEFAULT,
     ["zh-CN", "zh-Hans"],
@@ -1101,6 +1110,10 @@ export const OPT_LANGS_TO_SPEC = {
 
 export const OPT_LANGS_FROM_SPEC = {
   ...OPT_LANGS_TO_SPEC,
+  [OPT_TRANS_MYMEMORY]: new Map([
+    ["auto", "auto"],
+    ...OPT_LANGS_TO_SPEC[OPT_TRANS_MYMEMORY],
+  ]),
   [OPT_TRANS_DEEPL]: new Map([
     ...OPT_LANGS_TO_SPEC[OPT_TRANS_DEEPL],
     ["zh-CN", "ZH"],
@@ -1583,6 +1596,16 @@ const defaultApiOpts = {
     ...defaultApi,
     useBatchFetch: true,
   },
+  [OPT_TRANS_MYMEMORY]: {
+    ...defaultApi,
+    apiName: "MyMemory · 免 Key",
+    url: "https://api.mymemory.translated.net/get",
+    key: "",
+    fetchLimit: 1,
+    fetchInterval: 1000,
+    httpTimeout: 30,
+    rootMargin: 300,
+  },
   [OPT_TRANS_AZUREAI]: {
     ...defaultApi,
     url: "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0",
@@ -1731,14 +1754,32 @@ const defaultApiOpts = {
 };
 
 // 内置翻译接口列表（带参数）
-export const DEFAULT_API_LIST = OPT_ALL_TRANS_TYPES.map((apiType) =>
-  normalizeApiThinkingSetting({
-    ...defaultApiOpts[apiType],
-    apiSlug: apiType,
-    apiName: apiType,
-    apiType,
-  })
-);
+export const DEFAULT_API_LIST = [
+  ...OPT_ALL_TRANS_TYPES.map((apiType) =>
+    normalizeApiThinkingSetting({
+      ...defaultApiOpts[apiType],
+      apiSlug: apiType,
+      apiName: defaultApiOpts[apiType].apiName || apiType,
+      apiType,
+    })
+  ),
+  {
+    ...defaultApi,
+    apiSlug: API_SLUG_LOCAL_ARGOS,
+    apiName: "本机离线 · Argos",
+    apiType: OPT_TRANS_CUSTOMIZE,
+    url: "http://127.0.0.1:8765/translate",
+    // 直接使用 Custom 的 {text, from, to} 协议，语言代码由本机服务处理。
+    key: "",
+    reqHook: "",
+    resHook: "",
+    useBatchFetch: false,
+    useStream: false,
+    httpTimeout: 60,
+    fetchLimit: 1,
+    sortOrder: -1,
+  },
+];
 
 /**
  * 为单个翻译接口补齐模型列表 URL。

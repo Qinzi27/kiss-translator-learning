@@ -34,6 +34,7 @@ import {
 import { resolveApiPromptSettings } from "../config/prompt";
 import { interpreter } from "./interpreter";
 import { clearFetchPool } from "./pool";
+import { cancelWebAiClientTasks } from "./webAiClient";
 import { debounce, scheduleIdle, genEventName, parseAITerms } from "./utils";
 import { escapeHTML } from "./html";
 import { parseMathInText } from "./mathParse";
@@ -370,6 +371,7 @@ export class Translator {
   #viewNodes = new Set(); // 当前在可视范围内的单元
   #processedNodes = new WeakMap(); // 已处理（已执行翻译DOM操作）的单元
   #rootNodes = new Set(); // 已监控的根节点
+  #translationRefreshes = new Map(); // 已有译文的异步替换；等待期间保持旧译文
   #skipMoNodes = new WeakSet(); // 忽略变化的节点
   #ignoredMutationTargets = new WeakSet(); // 临时忽略扩展自身 DOM 调整产生的变化
   #plainTextPreprocessingNodes = new WeakSet(); // 正在流式预处理的纯文本 pre
@@ -4126,7 +4128,8 @@ overflow-wrap: anywhere !important;`;
     text,
     deLang = "",
     onStreamChunk = null,
-    apiSettingOverride = null
+    apiSettingOverride = null,
+    signal = undefined
   ) {
     const { toLang, transStartHook } = this.#rule;
     const fromLang = deLang || this.#rule.fromLang;
@@ -4150,6 +4153,7 @@ overflow-wrap: anywhere !important;`;
       onStreamChunk,
       textFormat: "html",
       translateVariants: this.#setting.translateVariants,
+      signal,
     };
 
     // 翻译开始钩子函数（允许用户在翻译请求发送前修改文本、语言或词典配置）
@@ -4184,6 +4188,7 @@ overflow-wrap: anywhere !important;`;
 
   // 清理所有插入的译文dom
   #cleanupAllNodes() {
+    this.#cancelTranslationRefreshes();
     this.#rootNodes.forEach((root) => this.#cleanupAllTranslations(root));
   }
 
@@ -4363,8 +4368,9 @@ overflow-wrap: anywhere !important;`;
   }
 
   // 清理译文；视口锚点由批量清理方法统一维护
-  #removeTranslationElement(el) {
+  #removeTranslationElement(el, preserveRefresh = false) {
     const parentElement = el.parentElement;
+    if (!preserveRefresh) this.#cancelTranslationRefreshes(parentElement);
     this.#processedNodes.delete(parentElement);
 
     // 如果是仅显示译文模式，先恢复原文
@@ -4546,6 +4552,227 @@ overflow-wrap: anywhere !important;`;
     this.#processNode(node);
   }
 
+  #cancelTranslationRefreshes(host) {
+    const entries = host
+      ? [[host, this.#translationRefreshes.get(host)]]
+      : [...this.#translationRefreshes];
+    for (const [node, task] of entries) {
+      if (!task) continue;
+      this.#translationRefreshes.delete(node);
+      task.controller.abort();
+      task.animations.forEach((animation) => animation.cancel());
+      task.wrappers.forEach((wrapper) => {
+        wrapper.removeAttribute("aria-busy");
+        if (wrapper.dataset.kissRefreshState === "pending") {
+          delete wrapper.dataset.kissRefreshState;
+        }
+      });
+    }
+  }
+
+  #originalSnapshot(nodes) {
+    return JSON.stringify(
+      nodes.map((node) =>
+        node.nodeType === Node.ELEMENT_NODE ? node.outerHTML : node.textContent
+      )
+    );
+  }
+
+  async #animateTranslationRefresh(inner, task, phase) {
+    if (
+      typeof inner.animate !== "function" ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    let animation;
+    try {
+      animation = inner.animate(
+        phase === "out"
+          ? [
+              { opacity: 1, clipPath: "inset(0 0 0 0)" },
+              { opacity: 0, clipPath: "inset(0 0 0 100%)" },
+            ]
+          : [{ opacity: 0 }, { opacity: 1 }],
+        {
+          duration: phase === "out" ? 140 : 160,
+          easing: "ease-out",
+          fill: "forwards",
+        }
+      );
+      task.animations.add(animation);
+      await animation.finished;
+    } catch {
+      // Cancellation restores the retained text; validity is checked by the caller.
+    } finally {
+      if (animation) {
+        task.animations.delete(animation);
+        animation.cancel();
+      }
+    }
+  }
+
+  #refreshExistingTranslations(host) {
+    this.#cancelTranslationRefreshes(host);
+    const wrappers = [...this.#findTranslationWrappers(host)].filter(
+      (wrapper) => this.#translationNodes.has(wrapper)
+    );
+    if (!wrappers.length) return;
+    const task = {
+      controller: new AbortController(),
+      animations: new Set(),
+      wrappers,
+      runId: this.#runId,
+      rule: { ...this.#rule },
+      apiSetting: { ...this.#apiSetting },
+    };
+    this.#translationRefreshes.set(host, task);
+    const current = () =>
+      this.#translationRefreshes.get(host) === task &&
+      !task.controller.signal.aborted &&
+      task.runId === this.#runId &&
+      this.#enabled;
+
+    const refresh = async (wrapper) => {
+      const data = this.#translationNodes.get(wrapper);
+      const inner = wrapper.querySelector(
+        `:scope > .${Translator.KISS_CLASS.inner}`
+      );
+      if (!data?.nodes?.length || !inner) return;
+      const snapshot = this.#originalSnapshot(data.nodes);
+      const valid = () => {
+        const activeNodes = this.#translationNodes.get(wrapper)?.nodes;
+        return (
+          current() &&
+          wrapper.isConnected &&
+          activeNodes?.length === data.nodes.length &&
+          activeNodes.every((node, index) => node === data.nodes[index]) &&
+          this.#originalSnapshot(data.nodes) === snapshot
+        );
+      };
+      wrapper.dataset.kissRefreshState = "pending";
+      wrapper.setAttribute("aria-busy", "true");
+      wrapper.removeAttribute("title");
+      try {
+        // Serialize detached copies: placeholder preparation must not mutate
+        // original links, text nodes, images, or their existing event listeners.
+        const [text, placeholders] = this.#serializeForTranslation(
+          data.nodes.map((node) => node.cloneNode(true)),
+          task.rule.termsStyle
+        );
+        if (!text.trim()) throw new Error("没有可替换的译文");
+        let source = task.rule.fromLang;
+        if (source === "auto") {
+          source = await tryDetectLang(
+            data.nodes.map((node) => node.textContent).join(""),
+            this.#setting.langDetector
+          );
+        }
+        if (!valid()) return;
+        const skip =
+          source &&
+          (isSameTranslationLanguage(
+            source,
+            task.rule.toLang,
+            this.#setting.translateVariants
+          ) ||
+            this.#setting.skipLangs?.includes(source));
+        const result = skip
+          ? { isSame: true }
+          : await this.#translateFetch(
+              text,
+              source,
+              null,
+              task.apiSetting,
+              task.controller.signal
+            );
+        if (!valid()) return;
+        if (
+          !result.isSame &&
+          (typeof result.trText !== "string" || !result.trText.trim())
+        ) {
+          throw new Error("新服务未返回有效译文");
+        }
+        const translated = result.isSame
+          ? null
+          : trustedTypesHelper.createHTML(
+              this.#restoreFromTranslation(result.trText, placeholders)
+            );
+        // Wait for a complete successful response before beginning the old-text wipe.
+        await this.#animateTranslationRefresh(inner, task, "out");
+        if (!valid()) return;
+        this.#withViewportAnchor(() => {
+          if (result.isSame) this.#removeTranslationElement(wrapper, true);
+          else {
+            inner.innerHTML = translated;
+            inner.lang = task.rule.toLang;
+          }
+        });
+        wrapper.removeAttribute("aria-busy");
+        delete wrapper.dataset.kissRefreshState;
+        wrapper.removeAttribute("title");
+        if (!result.isSame && valid())
+          await this.#animateTranslationRefresh(inner, task, "in");
+      } catch (error) {
+        if (!valid()) return;
+        wrapper.dataset.kissRefreshState = "error";
+        wrapper.removeAttribute("aria-busy");
+        wrapper.title = `新译文未完成，保留原译文：${this.#formatTranslateError(error).slice(0, 180)}`;
+      } finally {
+        if (current() && wrapper.dataset.kissRefreshState === "pending") {
+          wrapper.removeAttribute("aria-busy");
+          delete wrapper.dataset.kissRefreshState;
+        }
+      }
+    };
+    Promise.all(wrappers.map(refresh)).finally(() => {
+      if (this.#translationRefreshes.get(host) === task)
+        this.#translationRefreshes.delete(host);
+    });
+  }
+
+  #restartTranslationPreservingCompleted() {
+    this.#cancelTranslationRefreshes();
+    this.#runId += 1;
+    this.#holdGeneration += 1;
+    clearFetchPool();
+    cancelWebAiClientTasks();
+    clearAllBatchQueue();
+    const hosts = new Set();
+    for (const root of this.#rootNodes) {
+      root
+        .querySelectorAll(`.${Translator.KISS_CLASS.warpper}`)
+        .forEach((wrapper) => {
+          if (this.#translationNodes.has(wrapper))
+            hosts.add(wrapper.parentElement);
+          else this.#removeTranslationElement(wrapper);
+        });
+    }
+    // Keep upstream presentation changes (order, original wrapping, translation-only)
+    // separate from replacing the translation content.
+    for (const host of hosts) {
+      const applied = this.#processedNodes.get(host);
+      if (!applied) continue;
+      const aligned = {
+        ...applied,
+        apiSlug: this.#rule.apiSlug,
+        fromLang: this.#rule.fromLang,
+        toLang: this.#rule.toLang,
+        hasRichText: this.#rule.hasRichText,
+      };
+      this.#processedNodes.set(host, aligned);
+      this.#performSyncNode(host);
+    }
+    // A provider can have a different viewport margin or translate-all preference.
+    // Refresh its observation policy without rescan() destroying completed results.
+    this.#io.disconnect();
+    this.#io = this.#createIntersectionObserver();
+    this.#viewNodes.clear();
+    this.#observedNodes = new WeakSet();
+    this.#processedNodes = new WeakMap();
+    for (const root of this.#rootNodes) this.#scanNode(root);
+    for (const host of hosts) this.#refreshExistingTranslations(host);
+  }
+
   // 使指定节点的状态与当前的全局同步
   #performSyncNode(node) {
     const appliedRule = this.#processedNodes.get(node);
@@ -4624,6 +4851,7 @@ overflow-wrap: anywhere !important;`;
 
   // 停止监听，重置参数
   #resetOptions() {
+    this.#cancelTranslationRefreshes();
     this.#rescanQueue = new Set();
     this.#isQueueProcessing = false;
     // 停止/重扫会清理实例状态，语言检测中的按住任务必须立即过期
@@ -4934,6 +5162,7 @@ overflow-wrap: anywhere !important;`;
 
     this.#cleanupAllNodes();
     clearFetchPool();
+    cancelWebAiClientTasks();
     clearAllBatchQueue();
 
     // 恢复页面标题
@@ -4954,6 +5183,7 @@ overflow-wrap: anywhere !important;`;
     this.#cleanupAllNodes();
     this.#resetOptions();
     clearFetchPool();
+    cancelWebAiClientTasks();
     clearAllBatchQueue();
 
     // 重新初始化
@@ -5028,6 +5258,16 @@ overflow-wrap: anywhere !important;`;
     let needsRescan = false;
     const oldTransAllnow = this.#transAllnow;
     const oldRootMargin = this.#rootMargin;
+    const translationChanged = [
+      "apiSlug",
+      "fromLang",
+      "toLang",
+      "hasRichText",
+    ].some(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(newRule, key) &&
+        this.#rule[key] !== newRule[key]
+    );
     for (const key in newRule) {
       if (
         Object.prototype.hasOwnProperty.call(this.#rule, key) &&
@@ -5055,6 +5295,17 @@ overflow-wrap: anywhere !important;`;
     // 配置变更时清空正则缓存
     this.#placeholderCache = null;
     this.#blockSelectorInvalid = false;
+
+    if (
+      translationChanged &&
+      !needsRescan &&
+      this.#enabled &&
+      this.#isInitialized
+    ) {
+      this.#restartTranslationPreservingCompleted();
+      this.#syncTransOnlyRevert();
+      return;
+    }
 
     const needsTriggerRescan =
       this.#enabled &&

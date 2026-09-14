@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  API_SLUG_LOCAL_ARGOS,
   DEFAULT_API_LIST,
   OPT_TRANS_MICROSOFT,
   OPT_TRANS_OPENAI,
@@ -11,6 +12,7 @@ import {
   getApiDisplayName,
   getApiSortMode,
   sortApisAlphabetically,
+  useApiItem,
   useApiList,
 } from "./Api";
 
@@ -97,6 +99,55 @@ describe("API alphabetical ordering", () => {
     expect(descendingApis.map((api) => api.apiSlug)).toEqual(["beta", "alpha"]);
     expect(getApiSortMode(ascendingApis)).toBe(API_SORT_MODES.ASC);
     expect(getApiSortMode(descendingApis)).toBe(API_SORT_MODES.DESC);
+  });
+});
+
+describe("useApiItem reset", () => {
+  test.each([
+    [API_SLUG_LOCAL_ARGOS, API_SLUG_LOCAL_ARGOS],
+    ["OpenAI_user_instance", OPT_TRANS_OPENAI],
+  ])("restores the right template for %s", (apiSlug, defaultSlug) => {
+    mockUpdateSetting.mockReset();
+    const template = DEFAULT_API_LIST.find(
+      (api) => api.apiSlug === defaultSlug
+    );
+    const modified = {
+      ...template,
+      apiSlug,
+      apiName: "My translation service",
+      url: "http://127.0.0.1:9999/changed",
+      httpTimeout: 5,
+      key: "saved-user-key",
+    };
+    const previous = { keep: true, transApis: [modified] };
+    mockSetting = previous;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const hookResult = {};
+    function TestComponent() {
+      Object.assign(hookResult, useApiItem(apiSlug));
+      return null;
+    }
+
+    act(() => root.render(<TestComponent />));
+    act(() => hookResult.reset());
+
+    expect(mockUpdateSetting).toHaveBeenCalledTimes(1);
+    const update = mockUpdateSetting.mock.calls[0][0];
+    expect(update(previous)).toEqual({
+      ...previous,
+      transApis: [
+        {
+          ...template,
+          apiSlug,
+          apiName: modified.apiName,
+          key: modified.key,
+        },
+      ],
+    });
+    act(() => root.unmount());
+    container.remove();
   });
 });
 
@@ -203,6 +254,22 @@ describe("useApiList", () => {
     const host = renderApiList();
 
     expect(host.hookResult.transApis).toEqual([microsoft]);
+    expect(mockUpdateSetting).not.toHaveBeenCalled();
+    host.unmount();
+  });
+
+  test("retains the local Argos preset as an enabled built-in service", () => {
+    const argos = DEFAULT_API_LIST.find(
+      (api) => api.apiSlug === API_SLUG_LOCAL_ARGOS
+    );
+    mockSetting = { transApis: [argos] };
+
+    const host = renderApiList();
+
+    expect(host.hookResult.transApis).toEqual([argos]);
+    expect(host.hookResult.enabledApis).toEqual([argos]);
+    expect(host.hookResult.builtinApis).toEqual([argos]);
+    expect(host.hookResult.userApis).toEqual([]);
     expect(mockUpdateSetting).not.toHaveBeenCalled();
     host.unmount();
   });

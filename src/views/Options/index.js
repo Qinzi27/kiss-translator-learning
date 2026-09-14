@@ -18,6 +18,7 @@ import Stack from "@mui/material/Stack";
 import { adaptScript } from "../../libs/gm";
 import Alert from "@mui/material/Alert";
 import Apis from "./Apis";
+import AiServices from "./AiServices";
 import Prompts from "./Prompts";
 import InputSetting from "./InputSetting";
 import Tranbox from "./Tranbox";
@@ -199,6 +200,7 @@ export default function Options() {
                   <Route path="mousehover" element={<MouseHoverSetting />} />
                   <Route path="subtitle" element={<SubtitleSetting />} />
                   <Route path="apis" element={<Apis />} />
+                  <Route path="ai-services" element={<AiServices />} />
                   <Route path="prompts" element={<Prompts />} />
                   <Route path="sync" element={<SyncSetting />} />
                   <Route path="words" element={<FavWords />} />

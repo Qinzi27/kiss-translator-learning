@@ -7,8 +7,20 @@ import {
 } from "./setting";
 import { DEFAULT_API_LIST, OPT_TRANS_MICROSOFT } from "./api";
 import { GLOBAL_KEY } from "./rules";
+import { UI_LANGS, I18N } from "./i18n";
 
 describe("translation box defaults", () => {
+  test("uses a supported Simplified Chinese UI with local rules and short-text line breaks", () => {
+    expect(DEFAULT_SETTING.uiLang).toBe("zh");
+    expect(UI_LANGS.some(([key]) => key === DEFAULT_SETTING.uiLang)).toBe(true);
+    expect(I18N.translate[DEFAULT_SETTING.uiLang]).toBeTruthy();
+    expect(DEFAULT_SETTING.injectRules).toBe(false);
+    expect(DEFAULT_SETTING.networkPolicy).toBe("normal");
+    expect(DEFAULT_SETTING.newlineLength).toBeLessThan(
+      DEFAULT_SETTING.minLength
+    );
+  });
+
   test("translates language variants by default", () => {
     expect(DEFAULT_SETTING.translateVariants).toBe(true);
   });

@@ -51,7 +51,9 @@ try {
     process.env.FORCE_COLOR = "1";
     process.env.NODE_OPTIONS = [
       process.env.NODE_OPTIONS,
-      "--disable-warning=DEP0176",
+      process.allowedNodeEnvironmentFlags.has("--disable-warning")
+        ? "--disable-warning=DEP0176"
+        : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -69,6 +71,7 @@ try {
   if (["chrome", "edge", "safari"].includes(target)) {
     // 1. 清理 HTML
     await fs.remove(inDest("content.html"));
+    await fs.remove(inDest("free-api-demo.html"));
 
     // 2. 清理多余的 Firefox/Thunderbird manifest
     await fs.remove(inDest("manifest.firefox.json"));

@@ -20,6 +20,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
 import {
+  DEFAULT_FAB,
   UI_LANGS,
   TRANS_NEWLINE_LENGTH,
   OPT_LANGDETECTOR_ALL,
@@ -49,6 +50,10 @@ import UploadButton from "./UploadButton";
 import DownloadButton from "./DownloadButton";
 import ValidationInput from "../../hooks/ValidationInput";
 import OverviewHero from "./OverviewHero";
+import {
+  NETWORK_POLICIES,
+  NETWORK_POLICY_NORMAL,
+} from "../../libs/networkPolicy";
 
 /**
  * 包装单个快捷键录入表单项组件
@@ -267,6 +272,7 @@ export default function Settings() {
   // 解构当前基础查词偏好设置
   const {
     uiLang,
+    networkPolicy = NETWORK_POLICY_NORMAL,
     minLength,
     maxLength,
     clearCache,
@@ -294,9 +300,9 @@ export default function Settings() {
     : OPT_POPUP_DEFAULT_VIEW_PAGE;
   // 解构 FAB 悬浮球的显隐状态及点击后的默认交互行为
   const {
-    isHide = false,
-    fabClickAction = 0,
-    hideExceptionList = "",
+    isHide = DEFAULT_FAB.isHide,
+    fabClickAction = DEFAULT_FAB.fabClickAction,
+    hideExceptionList = DEFAULT_FAB.hideExceptionList,
   } = fab || {};
 
   return (
@@ -325,6 +331,24 @@ export default function Settings() {
             {i18n("general")}
           </Typography>
           <Grid container columns={12}>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                name="networkPolicy"
+                value={networkPolicy}
+                label="联网策略"
+                onChange={handleChange}
+                helperText="仅本机离线需要预先安装本地翻译服务。策略约束插件内置 HTTP 请求，切换后对新请求生效；不改变网页自身联网，不会自动切换翻译服务。受限模式禁止重定向。"
+              >
+                {NETWORK_POLICIES.map(([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
             {/* 设置面板用户界面语言 */}
             <Grid item xs={12} sm={12} md={6} lg={6}>
               <TextField

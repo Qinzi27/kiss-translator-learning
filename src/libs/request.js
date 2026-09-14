@@ -11,6 +11,11 @@ import { MSG_FETCH, DEFAULT_HTTP_TIMEOUT } from "../config";
 import { isBg } from "./browser";
 import { kissLog } from "./log";
 import { parseResponse } from "./response";
+import {
+  NETWORK_POLICY_NORMAL,
+  fetchUnderNetworkPolicy,
+  resolveNetworkPolicy,
+} from "./networkPolicy";
 
 /**
  * 将用户配置的请求超时时间统一归一化为毫秒。
@@ -235,7 +240,10 @@ const fetchKissGM = async (
  * @returns {Promise<Response>} 标准 Response 实例。
  */
 export const fetchPatcher = async (input, init = {}, opts) => {
-  const timeout = await resolveHttpTimeout(opts);
+  const [timeout, networkPolicy] = await Promise.all([
+    resolveHttpTimeout(opts),
+    resolveNetworkPolicy(),
+  ]);
   const signal = mergeAbortSignals([
     init.signal,
     opts?.signal,
@@ -243,7 +251,8 @@ export const fetchPatcher = async (input, init = {}, opts) => {
   ]);
   const requestInit = { ...init, signal };
 
-  if (isGm) {
+  // Restricted userscript modes use native fetch so redirects cannot escape the policy.
+  if (isGm && networkPolicy === NETWORK_POLICY_NORMAL) {
     const gmInit = { ...requestInit, timeout };
 
     const { body, headers, status, statusText } = window.KISS_GM
@@ -257,7 +266,7 @@ export const fetchPatcher = async (input, init = {}, opts) => {
     });
   }
 
-  return fetch(input, requestInit);
+  return fetchUnderNetworkPolicy(input, requestInit, networkPolicy);
 };
 
 /**

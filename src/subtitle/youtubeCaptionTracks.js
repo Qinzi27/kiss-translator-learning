@@ -1,4 +1,5 @@
 import { logger } from "../libs/log.js";
+import { policyFetch } from "../libs/networkPolicy";
 import {
   isSameTranslationLanguage,
   normalizeLanguageCode,
@@ -149,7 +150,7 @@ let captionTracksCache = null;
 async function fetchCaptionTracks(videoId) {
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const html = await fetch(url).then((r) => r.text());
+    const html = await policyFetch(url).then((r) => r.text());
     const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/s);
     if (!match) return {};
     const data = JSON.parse(match[1]);
@@ -228,7 +229,7 @@ export async function getSubtitleEvents(capUrl, potUrl, responseText) {
       potUrl.searchParams.delete("kind");
     }
 
-    const res = await fetch(potUrl.href);
+    const res = await policyFetch(potUrl.href);
     if (res?.ok) {
       const json = await res.json();
       return json?.events;

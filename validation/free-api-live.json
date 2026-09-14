@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-09-14T16:23:11.706Z",
+  "provider": "MyMemory",
+  "anonymous": true,
+  "scope": "Real handleTranslate/provider with exact-origin Node HTTPS transport; no cached responses",
+  "networkPolicy": "no-google",
+  "audit": [
+    {
+      "host": "api.mymemory.translated.net",
+      "path": "/get",
+      "bytes": 73,
+      "status": 200,
+      "responseStatus": 200,
+      "quotaFinished": false
+    },
+    {
+      "host": "api.mymemory.translated.net",
+      "path": "/get",
+      "bytes": 60,
+      "status": 200,
+      "responseStatus": 200,
+      "quotaFinished": false
+    }
+  ],
+  "translations": [
+    {
+      "fromLang": "en",
+      "toLang": "zh-CN",
+      "source": "A small translation test can help us learn how a browser extension works.",
+      "translation": "简单的翻译测试可以帮助我们了解浏览器扩展的工作原理。"
+    },
+    {
+      "fromLang": "zh-CN",
+      "toLang": "en",
+      "source": "这个免费的接口可以帮助我们测试网页翻译。",
+      "translation": "This free interface helps us test web translations."
+    }
+  ]
+}

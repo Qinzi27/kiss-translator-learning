@@ -413,7 +413,9 @@ export function useApiItem(apiSlug) {
       transApis: (prev?.transApis || []).map((item) => {
         if (item.apiSlug === apiSlug) {
           const defaultApiOpt =
-            DEFAULT_API_LIST.find((da) => da.apiType === item.apiType) || {};
+            DEFAULT_API_LIST.find((da) => da.apiSlug === item.apiSlug) ||
+            DEFAULT_API_LIST.find((da) => da.apiType === item.apiType) ||
+            {};
           return {
             ...defaultApiOpt,
             apiSlug: item.apiSlug,

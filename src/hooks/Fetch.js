@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { policyFetch } from "../libs/networkPolicy";
 
 /**
  * 自定义异步操作封装 Hook，管理数据、加载态及错误状态
@@ -93,7 +94,7 @@ export const useFetch = () => {
 
   // 内部默认的请求器实现，负责处理响应 HTTP 状态及 Content-Type 识别
   const requester = useCallback(async (url, options) => {
-    const response = await fetch(url, options);
+    const response = await policyFetch(url, options);
     // 请求失败时抛出详细 Error
     if (!response.ok) {
       const errorInfo = await response.text();

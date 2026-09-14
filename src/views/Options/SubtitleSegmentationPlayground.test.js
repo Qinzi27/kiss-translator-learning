@@ -420,3 +420,6 @@ describe("SubtitleSegmentationPlayground", () => {
     act(() => root.unmount());
   });
 });
+jest.mock("../../libs/storage", () => ({
+  getSettingWithDefault: jest.fn(async () => ({ networkPolicy: "normal" })),
+}));

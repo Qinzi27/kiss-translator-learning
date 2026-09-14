@@ -1,0 +1,20 @@
+{
+  "verified_at": "2026-09-14T05:21:59.590659+00:00",
+  "os_network_denied": true,
+  "outbound_connection_probe_blocked": true,
+  "cold_start": true,
+  "real_argos_inference": [
+    {
+      "from": "en",
+      "to": "zh",
+      "input": "Reading helps us understand the world.",
+      "output": "阅读帮助我们理解世界。"
+    },
+    {
+      "from": "zh",
+      "to": "en",
+      "input": "今天我想学习如何翻译网页。",
+      "output": "Today I want to learn how to translate the page."
+    }
+  ]
+}

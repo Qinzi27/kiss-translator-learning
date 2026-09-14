@@ -117,6 +117,7 @@ jest.mock("./Navigator", () => mockComponent("options-nav"));
 jest.mock("./Rules", () => mockComponent("rules-page"));
 jest.mock("./FavWords", () => mockComponent("words-page"));
 jest.mock("./Apis", () => mockComponent("apis-page"));
+jest.mock("./AiServices", () => mockComponent("ai-services-page"));
 jest.mock("./Setting", () => mockComponent("setting-page"));
 jest.mock("./About", () => mockComponent());
 jest.mock("./SyncSetting", () => mockComponent());
@@ -256,41 +257,47 @@ describe("Options startup sync", () => {
     view.unmount();
   });
 
-  test("does not mount other pages before setting sync completes", async () => {
-    const settingSync = createDeferred();
-    trySyncSetting.mockReturnValueOnce(settingSync.promise);
+  test.each([
+    ["apis", "apis-page"],
+    ["ai-services", "ai-services-page"],
+  ])(
+    "does not mount %s before setting sync completes",
+    async (path, testId) => {
+      const settingSync = createDeferred();
+      trySyncSetting.mockReturnValueOnce(settingSync.promise);
 
-    const view = renderOptions("#/apis");
-    await flushEffects();
+      const view = renderOptions(`#/${path}`);
+      await flushEffects();
 
-    expect(view.container.querySelector("[data-testid='apis-page']")).toBe(
-      null
-    );
-    expect(mockSettingProvider).not.toHaveBeenCalled();
-    expect(
-      view.container.querySelector("[data-testid='options-sync-backdrop']")
-    ).not.toBe(null);
-    expect(trySyncSetting).toHaveBeenCalledTimes(1);
-    expect(trySyncRules).not.toHaveBeenCalled();
-    expect(trySyncWords).not.toHaveBeenCalled();
+      expect(view.container.querySelector(`[data-testid='${testId}']`)).toBe(
+        null
+      );
+      expect(mockSettingProvider).not.toHaveBeenCalled();
+      expect(
+        view.container.querySelector("[data-testid='options-sync-backdrop']")
+      ).not.toBe(null);
+      expect(trySyncSetting).toHaveBeenCalledTimes(1);
+      expect(trySyncRules).not.toHaveBeenCalled();
+      expect(trySyncWords).not.toHaveBeenCalled();
 
-    await act(async () => {
-      settingSync.resolve();
-      await settingSync.promise;
-    });
-    await flushEffects();
+      await act(async () => {
+        settingSync.resolve();
+        await settingSync.promise;
+      });
+      await flushEffects();
 
-    expect(
-      view.container.querySelector("[data-testid='options-sync-backdrop']")
-    ).toBe(null);
-    expect(view.container.querySelector("[data-testid='apis-page']")).not.toBe(
-      null
-    );
-    expect(trySyncRules).toHaveBeenCalledTimes(1);
-    expect(trySyncWords).toHaveBeenCalledTimes(1);
+      expect(
+        view.container.querySelector("[data-testid='options-sync-backdrop']")
+      ).toBe(null);
+      expect(
+        view.container.querySelector(`[data-testid='${testId}']`)
+      ).not.toBe(null);
+      expect(trySyncRules).toHaveBeenCalledTimes(1);
+      expect(trySyncWords).toHaveBeenCalledTimes(1);
 
-    view.unmount();
-  });
+      view.unmount();
+    }
+  );
 
   test("waits only for settings on the appearance page", async () => {
     const settingSync = createDeferred();

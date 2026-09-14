@@ -10,6 +10,11 @@ import { isBg } from "./browser";
 import { PORT_STREAM_FETCH } from "../config";
 import { createSSEParser, createAsyncQueue } from "./stream";
 import {
+  NETWORK_POLICY_NORMAL,
+  fetchUnderNetworkPolicy,
+  resolveNetworkPolicy,
+} from "./networkPolicy";
+import {
   createTimeoutSignal,
   mergeAbortSignals,
   normalizeHttpTimeout,
@@ -235,7 +240,11 @@ export async function* fetchStreamNative(input, init = {}, opts = {}) {
     options.signal,
     createTimeoutSignal(timeout),
   ]);
-  const response = await fetch(input, { ...init, signal });
+  const response = await fetchUnderNetworkPolicy(
+    input,
+    { ...init, signal },
+    await resolveNetworkPolicy()
+  );
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -360,7 +369,8 @@ export async function* requestStream(input, init, opts = {}) {
     return;
   }
 
-  if (isGm) {
+  // Native fetch enforces redirect:error; GM redirect handling varies by manager.
+  if (isGm && (await resolveNetworkPolicy()) === NETWORK_POLICY_NORMAL) {
     yield* fetchStreamGM(input, {
       ...init,
       timeout: opts.httpTimeout,

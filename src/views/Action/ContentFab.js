@@ -27,6 +27,7 @@ import ThemeProvider from "../../hooks/M3Theme";
 import Draggable from "./Draggable";
 import { SettingProvider } from "../../hooks/Setting";
 import {
+  DEFAULT_FAB,
   EVENT_KISS_INNER,
   MSG_OPEN_OPTIONS,
   MSG_OPEN_TRANBOX,
@@ -82,7 +83,12 @@ export const FAB_POPPER_MODIFIERS = [
  * Supports dragging, edge snapping, and a Material 3 action menu.
  */
 export function ContentFabContent({
-  fabConfig: { x: fabX, y: fabY, edge: fabEdge, fabClickAction = 0 } = {},
+  fabConfig: {
+    x: fabX,
+    y: fabY,
+    edge: fabEdge,
+    fabClickAction = DEFAULT_FAB.fabClickAction,
+  } = {},
   processActions,
   getSelectionEnabled = selectionUnavailable,
 }) {

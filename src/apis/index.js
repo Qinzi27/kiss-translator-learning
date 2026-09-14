@@ -1,4 +1,5 @@
 import queryString from "query-string";
+import { resolveLearningAiApi } from "../config/aiServices";
 import { fetchData } from "../libs/fetch";
 import {
   URL_CACHE_TRAN,
@@ -124,6 +125,9 @@ function getPromptCacheFields(apiSetting = {}, promptScope, glossary = {}) {
   }
 
   fields.push(apiSetting.tone || "", apiSetting.aiTerms || "");
+  if (apiSetting.learningAi) {
+    fields.push(JSON.stringify([apiSetting.learningAi, apiSetting.url, apiSetting.model]));
+  }
   const glossaryEntries = Object.entries(glossary || {}).sort();
   if (glossaryEntries.length) {
     fields.push(JSON.stringify(glossaryEntries));
@@ -710,6 +714,7 @@ export const apiTranslate = async ({
   textFormat = "text",
   signal,
 }) => {
+  apiSetting = resolveLearningAiApi(apiSetting);
   if (!text) {
     throw new Error("The text cannot be empty.");
   }

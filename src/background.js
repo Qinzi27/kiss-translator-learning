@@ -1,7 +1,10 @@
 import browser from "webextension-polyfill";
 import { writeSiteRule } from "./libs/ruleEditorStorage";
+import { createWebAiMessageHandlers } from "./libs/webAiMessages";
 import {
   MSG_FETCH,
+  MSG_WEB_AI_TRANSLATE,
+  MSG_WEB_AI_CANCEL,
   MSG_GET_HTTPCACHE,
   MSG_PUT_HTTPCACHE,
   MSG_TRANS_TOGGLE,
@@ -713,7 +716,10 @@ const injectToCurrentTab = async (func, args) => {
 };
 
 // 后台消息指令与对应处理器映射表
+const webAiMessageHandlers = createWebAiMessageHandlers();
 const messageHandlers = {
+  [MSG_WEB_AI_TRANSLATE]: webAiMessageHandlers.translate,
+  [MSG_WEB_AI_CANCEL]: webAiMessageHandlers.cancel,
   [MSG_FETCH]: (args) => fetchHandle(args), // 跨域请求代理
   [MSG_GET_HTTPCACHE]: (args) => getHttpCache(args), // 读取翻译 HTTP 缓存
   [MSG_PUT_HTTPCACHE]: (args) => putHttpCache(args), // 存入翻译 HTTP 缓存

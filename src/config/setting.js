@@ -35,7 +35,7 @@ export const DEFAULT_SHORTCUTS = {
 
 export const TRANS_MIN_LENGTH = 2; // 触发网页翻译的最小文本字符数 (过短字符如单个字母不予处理)
 export const TRANS_MAX_LENGTH = 100000; // 单次翻译的最大字符数
-export const TRANS_NEWLINE_LENGTH = 20; // 文本被认定为需要单独换行的长度限制
+export const TRANS_NEWLINE_LENGTH = 1; // 所有有效段落默认在原文下方追加译文，包括短标题
 
 // --- 工具栏弹窗默认界面 ---
 export const OPT_POPUP_DEFAULT_VIEW_PAGE = "page"; // 默认显示网页翻译界面
@@ -259,11 +259,19 @@ export const DEFAULT_MOUSE_HOVER_SETTING = {
   bubbleStyle: DEFAULT_MOUSE_HOVER_BUBBLE_STYLE, // 气泡模式的容器 CSS
 };
 
+// --- 悬浮球默认设置，独立存储于 STOKEY_FAB ---
+export const DEFAULT_FAB = {
+  isHide: false,
+  hideExceptionList: "",
+  fabClickAction: 1, // 单击开启整页双语翻译，再次单击收起译文
+};
+
 // --- 全局默认设置对象，存储于 local storage ---
 export const DEFAULT_SETTING = {
   version: CURRENT_SETTINGS_VERSION,
   darkMode: "auto", // 主题外观模式 ("light" 浅色, "dark" 深色, "auto" 跟随浏览器系统)
-  uiLang: "en", // 插件设置面板界面的显示语言
+  uiLang: "zh", // 插件设置面板界面的显示语言（UI 简体中文键为 zh）
+  networkPolicy: "normal", // 常规联网 / 屏蔽谷歌 / 仅本机离线；约束插件内置 HTTP 请求
   // fetchLimit: DEFAULT_FETCH_LIMIT, // 最大任务数量(移至rule，作废)
   // fetchInterval: DEFAULT_FETCH_INTERVAL, // 任务间隔时间(移至rule，作废)
   minLength: TRANS_MIN_LENGTH, // 整页翻译的段落最小有效长度限制
@@ -273,8 +281,8 @@ export const DEFAULT_SETTING = {
   clearCache: false, // 每次浏览器重启时，是否自动清空翻译结果的本地网络缓存
   autoTranslateClipboard: false, // 打开文本翻译面板或重新聚焦独立窗口时，是否自动翻译剪贴板文本
   popupDefaultView: OPT_POPUP_DEFAULT_VIEW_PAGE, // 工具栏弹窗打开时默认显示的界面
-  injectRules: true, // 页面加载时是否自动匹配并注入云端订阅的翻译规则
-  fabClickAction: 0, // 工具栏悬浮球按钮双击或单击的默认响应行为 (如开启/关闭翻译)
+  injectRules: false, // 默认使用本地规则，按需手动启用在线规则订阅
+  fabClickAction: DEFAULT_FAB.fabClickAction, // 兼容保留；实际悬浮球偏好存储于 STOKEY_FAB
   // injectWebfix: true, // 是否注入修复补丁(作废)
   // detectRemote: false, // 是否使用远程语言检测 （从rule移回）
   // contextMenus: true, // 是否添加右键菜单(作废)

@@ -12,6 +12,7 @@ import {
   STOKEY_RULESCACHE_PREFIX,
   STOKEY_DISABLED_SUB_RULES,
   DEFAULT_SETTING,
+  DEFAULT_FAB,
   DEFAULT_RULES,
   DEFAULT_SYNC,
   BUILTIN_RULES,
@@ -290,7 +291,10 @@ export const removeDisabledSubRules = async (url) => {
 
 // --- 悬浮球 (Fab Button) 位置及偏好存取 ---
 export const getFab = () => getObj(STOKEY_FAB);
-export const getFabWithDefault = async () => (await getFab()) || {};
+export const getFabWithDefault = async () => ({
+  ...DEFAULT_FAB,
+  ...(await getFab()),
+});
 export const setFab = (obj) => setObj(STOKEY_FAB, obj);
 export const putFab = (obj) => putObj(STOKEY_FAB, obj);
 
@@ -318,11 +322,11 @@ export const setBdauth = (val) => setObj(STOKEY_BDAUTH, val);
 
 /**
  * 首次加载或升级时，尝试向本地写入系统默认初始数据。
- * @param {string} uiLang 系统的默认语言设置
+ * 学习版首次安装使用 DEFAULT_SETTING 的中文界面；已有设置保持不变。
  */
-export const tryInitDefaultData = async (uiLang) => {
+export const tryInitDefaultData = async () => {
   try {
-    await trySetObj(STOKEY_SETTING, { ...DEFAULT_SETTING, uiLang });
+    await trySetObj(STOKEY_SETTING, DEFAULT_SETTING);
     await trySetObj(STOKEY_RULES, DEFAULT_RULES);
     await trySetObj(STOKEY_SYNC, DEFAULT_SYNC);
     await trySetObj(
