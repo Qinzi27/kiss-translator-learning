@@ -1,0 +1,27 @@
+{
+  "checked_on": "2026-09-15",
+  "platform": "macOS",
+  "python": "3.12.9",
+  "updater_version": "2.0.35-learning.6",
+  "from": "2.0.33-learning.4",
+  "to": "2.0.34-learning.5",
+  "anonymous_real_release_download": true,
+  "check_preserved_original": true,
+  "update_success": true,
+  "repeat_did_not_change_files": true,
+  "rollback_exact_original_bytes": true,
+  "one_backup_matches_updated_files": true,
+  "old_files": 62,
+  "new_files": 267,
+  "target_was_temporary_directory": true,
+  "browser_profile_accessed": false,
+  "installed_extension_end_to_end": false,
+  "mac_launcher_with_chinese_and_spaces": true,
+  "network_denied_preserved_extension_and_backup": true,
+  "unit_tests": 30,
+  "unit_test_python_versions": [
+    "3.9.6",
+    "3.12.9"
+  ],
+  "final_zip_preflight_on_public_learning5": true
+}

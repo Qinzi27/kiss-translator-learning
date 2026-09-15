@@ -19,6 +19,8 @@ export const isWideOptionsPage = (pathname) =>
   WIDE_PAGE_PATHS.has(normalizeOptionsPath(pathname));
 
 export async function fetchLatestVersion({ signal, now = Date.now } = {}) {
+  // Learning builds are updated by the explicitly launched local updater.
+  if (process.env.REACT_APP_LEARNING_EDITION === "true") return "";
   const versionUrls = [
     process.env.REACT_APP_VERSION_URL,
     process.env.REACT_APP_VERSION_URL_GITHUB,
@@ -59,7 +61,11 @@ export default function Layout() {
   const isWidePage = isWideOptionsPage(pathname);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "test") return undefined;
+    if (
+      process.env.REACT_APP_LEARNING_EDITION === "true" ||
+      process.env.NODE_ENV === "test"
+    )
+      return undefined;
     let active = true;
     const controller = new AbortController();
     fetchLatestVersion({ signal: controller.signal })

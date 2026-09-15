@@ -4,7 +4,7 @@
 
 ## 1. 下载并安装到 Chrome / Edge
 
-本说明对应 **2.0.34-learning.5**。从 [GitHub Releases](../../releases) 选择同名预发布，下载 `kiss-translator-learning-chrome.zip`。Chrome 和 Edge 使用同一安装包；如果只下载了 GitHub 的 Source code ZIP，须先按本文末尾构建，不能直接加载源码根目录。此版标为预发布，后台网页方式仍属实验性。
+本说明对应 **2.0.35-learning.6**。从 [GitHub Releases](../../releases) 选择同名预发布，下载 `kiss-translator-learning-chrome.zip`。Chrome 和 Edge 使用同一安装包；如果只下载了 GitHub 的 Source code ZIP，须先按本文末尾构建，不能直接加载源码根目录。此版标为预发布，后台网页方式仍属实验性。
 
 可选：下载同一发布页的四个附件（Chrome ZIP、对应源码 ZIP、`release-manifest.json`、`SHA256SUMS.txt`），放在同一目录核对完整性：macOS 用 `shasum -a 256 -c SHA256SUMS.txt`，Linux 用 `sha256sum -c SHA256SUMS.txt`。Windows PowerShell 用 `Get-FileHash .\kiss-translator-learning-chrome.zip -Algorithm SHA256`，将结果与校验文件中的同名条目比较；源码 ZIP 和 `release-manifest.json` 也同样核对。只下载单个 ZIP 时，可只计算该包的 SHA-256 并比对对应条目。
 
@@ -93,7 +93,7 @@ Windows PowerShell 使用：
 
 ## 更新、备份与排错
 
-升级前保留自己的设置备份。在同一已加载目录更新发布文件后，到扩展管理页点击重新加载，再刷新阅读页。只重新加载通常会保留设置；卸载、换浏览器用户配置文件或换电脑则不能依赖原本地存储。不要为了补一个缺失预置就清空全部设置。
+升级前保留自己的设置备份。本版附带本地一键更新工具：macOS 双击 `chrome` 文件夹旁的 **更新插件.command**，Windows 双击 **更新插件.bat**（需要 Python 3.9+）。它会自动检查、下载、校验、备份并在原位置替换，之后到扩展管理页点击重新加载，再刷新阅读页。不需要打开 GitHub 网页或登录；需要能连接 GitHub 下载源。首次摆放、只检查、回退与排错见 [UPDATING.md](UPDATING.md)。只重新加载通常会保留设置；卸载、换浏览器用户配置文件或换电脑则不能依赖原本地存储。不要为了补一个缺失预置就清空全部设置。
 
 按钮不出现、服务列表未更新、免费额度错误、本机连接失败等，见 [排错说明](docs/TROUBLESHOOTING.md)。已验证内容与限制见 [验证记录](VALIDATION.md)。
 

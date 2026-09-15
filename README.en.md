@@ -4,7 +4,7 @@
 
 Click the floating button on a regular webpage to keep the original text and append a translation below it. Click again to hide the translation. This edition focuses on English–Chinese reading, with online services and a separately prepared local Argos engine.
 
-Current version: **`2.0.34-learning.5` (prerelease)**. This version adds a PDF reader, native Chrome PDF handling, two-page pretranslation and session caching. It retains learning.4's disabled JavaScript hooks, sanitized settings exports/sync and required Argos pairing token. See [security and migration notes](SECURITY.md).
+Current version: **`2.0.35-learning.6` (prerelease)**. This version adds a local one-click updater. It retains PDF reading, native Chrome PDF handling, two-page pretranslation and session caching. It retains learning.4's disabled JavaScript hooks, sanitized settings exports/sync and required Argos pairing token. See [security and migration notes](SECURITY.md).
 
 This is an independent learning fork of [KISS Translator by Gabe / fishjar and contributors](https://github.com/fishjar/kiss-translator), based on version 2.0.32. **It is not an official release from the upstream author.** Upstream attribution and the [GPL-3.0 license](LICENSE) are retained.
 
@@ -31,7 +31,7 @@ Clicking page translation also enables automatic page translation and pretransla
 
 The same Release provides separate `SHA256SUMS.txt` and `release-manifest.json` files. Verify the downloaded extension or source ZIP against its SHA-256 checksum; the manifest records the version, source commit and artifact details. See [release notes](RELEASE-NOTES.md).
 
-To update, keep the loaded folder path, replace its extension files with the new version, click **Reload** in the extension manager, and refresh reading tabs. Existing settings usually remain; missing new presets can be added without clearing them. The upstream store extension is a different release.
+To update without opening GitHub, double-click `更新插件.command` on macOS or `更新插件.bat` on Windows, beside the loaded `chrome` directory. Python 3.9+ and access to GitHub downloads are required; no login, token, Git or Node.js is needed. The local tool validates release checksums, replaces files at the same path and keeps one rollback backup. Then click **Reload** in the extension manager and refresh reading tabs. It does not update itself or browser settings. See [UPDATING.md](UPDATING.md) for setup, check-only mode and rollback. Existing settings usually remain; missing new presets can be added without clearing them. The upstream store extension is a different release.
 
 Open **AI 翻译向导** in Options to try the MyMemory card, add a service, or configure an AI API. Tests send a disclosed synthetic sentence only when clicked. Saving an AI configuration does not send that sentence. After adding a service, refresh the reading page and select it in the translation panel. See the [Chinese setup guide](START-HERE.md) for global rules and offline preparation.
 

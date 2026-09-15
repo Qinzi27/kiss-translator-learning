@@ -292,6 +292,14 @@ export const OPTIONS_STYLES = String.raw`
 .kt-about-hero p { max-width: 390px; margin: 13px 0 0; color: var(--kt-onv); font-size: 13px; line-height: 1.55; }
 .kt-about-hero small { margin-top: 5px; color: var(--kt-onv); font-size: 11px; }
 .kt-about-hero__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 19px; }
+.kt-about-update { margin-bottom: 24px; padding: 24px; border: 1px solid var(--kt-linev); border-radius: 16px; background: var(--kt-sf0); }
+.kt-about-update h2 { margin: 0; scroll-margin-top: 24px; color: var(--kt-on); font-size: 18px; }
+.kt-about-update p, .kt-about-update li { color: var(--kt-onv); font-size: 13px; line-height: 1.7; }
+.kt-about-update ol { margin: 18px 0; padding-inline-start: 22px; }
+.kt-about-update li { padding-inline-start: 4px; margin-bottom: 12px; }
+.kt-about-update code { margin-inline: 3px; color: var(--kt-on); font-size: 12px; }
+.kt-about-update__note { padding: 12px 14px; border-radius: 10px; background: var(--kt-sf2); }
+.kt-about-update .kt-about-update__fallback { margin-bottom: 0; font-size: 12px; }
 .kt-about-details { margin-top: 0; }
 .kt-about-details .kt-settings-advanced .kt-settings-advanced__content { padding: 0; }
 .kt-about-loading { min-height: 120px; display: grid; place-items: center; }

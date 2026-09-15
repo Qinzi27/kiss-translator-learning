@@ -22,10 +22,13 @@ REQUIRED_DOCUMENTS = (
     "VALIDATION.md",
     "RELEASE-NOTES.md",
     "VERSION_MANAGEMENT.md",
+    "UPDATING.md",
     "custom-api_v2.md",
     "validation/free-api-live.json",
     "validation/pdf-preview.json",
+    "validation/updater.json",
 )
+UPDATER_FILES = ("更新插件.command", "更新插件.bat", "updater/update.py")
 EXCLUDED_SOURCE_FILES = {"PAUSED-HANDOFF.md", "dev-server-check.log"}
 EXCLUDED_DIRECTORIES = {
     ".git", ".offline", ".pnpm-store", "node_modules", "build", "releases",
@@ -98,7 +101,7 @@ def main():
     required.update(build_manifest.get("icons", {}).values())
     for name in sorted(required):
         regular_file(build, name)
-    documents = {name: regular_file(ROOT, name) for name in REQUIRED_DOCUMENTS}
+    documents = {name: regular_file(ROOT, name) for name in (*REQUIRED_DOCUMENTS, *UPDATER_FILES)}
 
     listed = sorted(set(filter(None, git_output(
         "ls-files", "--cached", "--others", "--exclude-standard", "-z"

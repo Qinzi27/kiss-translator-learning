@@ -253,11 +253,14 @@ describe("mobile settings navigation", () => {
 });
 
 describe("fetchLatestVersion", () => {
+  const originalLearningEdition = process.env.REACT_APP_LEARNING_EDITION;
+  const originalNodeEnv = process.env.NODE_ENV;
   const originalVersionUrl = process.env.REACT_APP_VERSION_URL;
   const originalGithubVersionUrl = process.env.REACT_APP_VERSION_URL_GITHUB;
   const originalFetch = global.fetch;
 
   beforeEach(() => {
+    process.env.REACT_APP_LEARNING_EDITION = "false";
     getSettingWithDefault.mockResolvedValue({ networkPolicy: "normal" });
     process.env.REACT_APP_VERSION_URL = "https://primary.example/version.txt";
     process.env.REACT_APP_VERSION_URL_GITHUB =
@@ -266,6 +269,12 @@ describe("fetchLatestVersion", () => {
   });
 
   afterEach(() => {
+    if (originalLearningEdition === undefined) {
+      delete process.env.REACT_APP_LEARNING_EDITION;
+    } else {
+      process.env.REACT_APP_LEARNING_EDITION = originalLearningEdition;
+    }
+    process.env.NODE_ENV = originalNodeEnv;
     if (originalVersionUrl === undefined) {
       delete process.env.REACT_APP_VERSION_URL;
     } else {
@@ -293,6 +302,34 @@ describe("fetchLatestVersion", () => {
       /^https:\/\/github\.example\/version\.txt\?t=/
     );
   });
+
+  test("learning edition refuses upstream version checks even when called directly", async () => {
+    process.env.REACT_APP_LEARNING_EDITION = "true";
+    await expect(fetchLatestVersion()).resolves.toBe("");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["true", 0],
+    ["false", 1],
+  ])(
+    "mounting edition=%s makes %i automatic version requests outside test mode",
+    async (learningEdition, requestCount) => {
+      process.env.NODE_ENV = "development";
+      process.env.REACT_APP_LEARNING_EDITION = learningEdition;
+      global.fetch.mockResolvedValue({ ok: true, text: async () => "" });
+      const container = document.createElement("div");
+      const root = createRoot(container);
+
+      try {
+        await act(async () => root.render(<Layout />));
+        expect(global.fetch).toHaveBeenCalledTimes(requestCount);
+        expect(container.querySelector(".kt-options-version-alert")).toBeNull();
+      } finally {
+        act(() => root.unmount());
+      }
+    }
+  );
 
   test("does not retry after an abort", async () => {
     const abortError = new Error("aborted");

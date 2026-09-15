@@ -27,6 +27,8 @@ jobs:
         run: pnpm test --watchAll=false --runInBand
       - name: Test offline service security (no models required)
         run: python3 -m unittest discover -s offline -p 'test_*.py'
+      - name: Test local updater (synthetic releases, no network)
+        run: python3 -m unittest discover -s updater -p 'test_*.py'
       - name: Audit locked dependencies
         run: pnpm audit --audit-level high
       - run: pnpm build:chrome
