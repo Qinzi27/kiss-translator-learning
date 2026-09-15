@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+# Preserve the Windows launcher's CRLF bytes in both Git and release archives.
+更新插件.bat -text whitespace=trailing-space,space-before-tab,cr-at-eol
