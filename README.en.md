@@ -4,7 +4,7 @@
 
 Click the floating button on a regular webpage to keep the original text and append a translation below it. Click again to hide the translation. This edition focuses on English–Chinese reading, with online services and a separately prepared local Argos engine.
 
-Current version: **`2.0.35-learning.6` (prerelease)**. This version adds a local one-click updater. It retains PDF reading, native Chrome PDF handling, two-page pretranslation and session caching. It retains learning.4's disabled JavaScript hooks, sanitized settings exports/sync and required Argos pairing token. See [security and migration notes](SECURITY.md).
+Current version: **`2.0.36-learning.7` (prerelease)**. This version adds an **插件更新** panel in Options and customizable status colors and icons for the webpage and PDF floating buttons. The Python updater, PDF reader, two-page pretranslation, session cache and earlier security fixes remain available. The new Chrome directory-update flow has not completed real installed-extension end-to-end testing. See [update instructions](UPDATING.md) and [security and migration notes](SECURITY.md).
 
 This is an independent learning fork of [KISS Translator by Gabe / fishjar and contributors](https://github.com/fishjar/kiss-translator), based on version 2.0.32. **It is not an official release from the upstream author.** Upstream attribution and the [GPL-3.0 license](LICENSE) are retained.
 
@@ -22,6 +22,8 @@ Clicking page translation also enables automatic page translation and pretransla
 - **Local Argos:** English–Chinese inference after downloading dependencies and models. Neither release ZIP contains those dependencies or models.
 - **Experimental Doubao / Kimi webpage mode:** uses the same browser profile's login session in a dedicated background tab. Real logged-in website compatibility has not been validated.
 
+Webpage and PDF floating buttons show actual request activity with a progress ring, a completion check or an error icon. The PDF ring contains a stop square; the webpage button preserves its configured stop/menu behavior. In **概览 → 悬浮翻译按钮颜色**, choose idle, busy and completed colors or enter six-digit hex values. Valid edits save automatically and synchronize with open reading pages. Foregrounds switch to high-contrast black or white; resetting colors preserves position, visibility and click behavior. Reduced-motion preferences are respected.
+
 ## Install or update
 
 1. Download `kiss-translator-learning-chrome.zip` from this repository's [Releases](../../releases) and extract it.
@@ -31,7 +33,11 @@ Clicking page translation also enables automatic page translation and pretransla
 
 The same Release provides separate `SHA256SUMS.txt` and `release-manifest.json` files. Verify the downloaded extension or source ZIP against its SHA-256 checksum; the manifest records the version, source commit and artifact details. See [release notes](RELEASE-NOTES.md).
 
-To update without opening GitHub, double-click `更新插件.command` on macOS or `更新插件.bat` on Windows, beside the loaded `chrome` directory. Python 3.9+ and access to GitHub downloads are required; no login, token, Git or Node.js is needed. The local tool validates release checksums, replaces files at the same path and keeps one rollback backup. Then click **Reload** in the extension manager and refresh reading tabs. It does not update itself or browser settings. See [UPDATING.md](UPDATING.md) for setup, check-only mode and rollback. Existing settings usually remain; missing new presets can be added without clearing them. The upstream store extension is a different release.
+For a Chrome Developer mode installation, open **插件更新** in Options. First choose and grant access to the actual loaded `chrome` folder. A random plaintext nonce file is written, read through this extension's URL and removed to distinguish the installed directory from an identical copy. Click **检查更新**, **下载并更新**, then explicitly **重新加载插件** and refresh reading tabs. No Python, Git, Node.js, token or additional manifest permission is required; the browser's directory read/write consent is still required.
+
+The browser updater verifies downloads before saving one rollback backup in the extension's IndexedDB, limited to 64 MiB of old file contents. It then replaces files individually, committing entry points last. **This is not an atomic whole-directory replacement.** Errors trigger a recovery attempt; closing the page, power loss or external file edits may require manual recovery before reloading. Requests target this fixed repository's public GitHub releases and allowed attachment-CDN redirects without login credentials or translation keys. Offline-only mode blocks browser update checks and downloads. The real Chrome File System Access permission/write/recovery/reload flow remains unverified; current coverage uses synthetic filesystem, storage and UI tests plus build checks. See [UPDATING.md](UPDATING.md).
+
+The Python updater remains available: double-click `更新插件.command` on macOS or `更新插件.bat` on Windows beside `chrome`, with Python 3.9+ installed. Reload the extension afterward. **Never run the browser and Python updaters simultaneously**; their locks and backups are separate, and the extension's offline policy does not control the external Python process. Existing settings usually remain; missing presets can be added without clearing them. The upstream store extension is a different release.
 
 Open **AI 翻译向导** in Options to try the MyMemory card, add a service, or configure an AI API. Tests send a disclosed synthetic sentence only when clicked. Saving an AI configuration does not send that sentence. After adding a service, refresh the reading page and select it in the translation panel. See the [Chinese setup guide](START-HERE.md) for global rules and offline preparation.
 
@@ -60,6 +66,8 @@ Earlier real MyMemory and Argos inference checks include Argos in a macOS proces
 
 The learning.5 MIME, pretranslation and cache paths have synthetic tests and build checks; see the validation record for results. The installed Chrome 153 native MIME flow has **not** been accepted in a real extension session. Private PDFs are not included in public release artifacts or fixtures.
 
+Learning.7 browser-update tests simulate atomic individual-file closes, durable IndexedDB commits, failed writes, cancellation, rollback, external edits, directory probes and size limits. These tests do not establish that real Chrome folder permissions, disk transactions or recovery after power loss work end to end.
+
 The eight AI APIs were not called with user account keys. Background webpage tests use DOM fixtures, not real logged-in sessions. No claim is made about mainland China network reachability, indefinite availability or unlimited free usage. Splitting rich text can preserve formatting while reducing translation fluency.
 
 The offline policy restricts the extension's built-in request layer. It does not turn cloud services into local models or control the webpage's own network traffic. Prepare models and load or save the page before offline use.
@@ -67,6 +75,7 @@ The offline policy restricts the extension's built-in request layer. It does not
 ## Documentation and attribution
 
 - [START-HERE.md](START-HERE.md): installation, service switching and Argos preparation.
+- [UPDATING.md](UPDATING.md): browser updates, directory authorization, recovery and the retained Python tool.
 - [docs/PDF-READER.md](docs/PDF-READER.md): PDF handling, pretranslation, session storage and limits.
 - [AI-SERVICES.md](AI-SERVICES.md): API configuration, billing labels and experimental webpage mode.
 - [TRANSLATION-SKILL.md](TRANSLATION-SKILL.md): fixed translation instructions and limits.

@@ -498,15 +498,41 @@ body:has(.pdf-reader) {
   width: 42px;
   height: 42px;
   padding: 0;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  border-color: var(--green);
-  background: var(--green);
-  color: #fff;
+  border-color: currentColor;
   box-shadow: 0 3px 12px #163c392e;
   font-size: 19px;
 }
 .pdf-reader .pdf-floating-translate:hover:not(:disabled) {
-  background: #18533f;
+  box-shadow: 0 3px 15px #163c3955;
+}
+.pdf-floating-translate__working {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.pdf-floating-translate__ring {
+  position: absolute;
+  inset: 0;
+  border: 3px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: pdf-floating-spin 0.9s linear infinite;
+}
+.pdf-floating-translate__stop {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentColor;
+}
+@keyframes pdf-floating-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .pdf-reading {
   padding-bottom: 52px;

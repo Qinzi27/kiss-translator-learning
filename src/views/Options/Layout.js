@@ -227,6 +227,7 @@ export default function Layout() {
       "/words": [i18n("favorite_words"), i18n("options_words_description")],
       "/playground": ["Playground", ""],
       "/about": [i18n("about"), ""],
+      "/updates": ["插件更新", "在 Chrome 中检查、下载并应用学习版更新。"],
     };
     return pages[pathname] || pages["/"];
   }, [i18n, pathname]);

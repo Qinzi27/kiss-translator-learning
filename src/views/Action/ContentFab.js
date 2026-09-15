@@ -1,3 +1,11 @@
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import { getFabAppearance } from "../../libs/fabAppearance";
+import {
+  IDLE_TRANSLATION_PROGRESS,
+  isTranslationBusy,
+  translationProgressLabel,
+} from "../../libs/translationProgress";
 import { supportsTouch } from "../../libs/touchCapability";
 import TouchTranslateControl from "../../components/TouchTranslateControl";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
@@ -45,6 +53,9 @@ import { ACTION_STYLES } from "./styles";
 import { subscribeInternalMessage } from "../../libs/internalEvents";
 
 const selectionUnavailable = () => false;
+const emptySubscribe = () => () => {};
+const idleProgress = () => IDLE_TRANSLATION_PROGRESS;
+const emptyFabConfig = Object.freeze({});
 
 function subscribeSelectionEnabled(onChange) {
   const handleChange = (message) => {
@@ -82,16 +93,31 @@ export const FAB_POPPER_MODIFIERS = [
  * Supports dragging, edge snapping, and a Material 3 action menu.
  */
 export function ContentFabContent({
-  fabConfig: {
-    x: fabX,
-    y: fabY,
-    edge: fabEdge,
-    fabClickAction = DEFAULT_FAB.fabClickAction,
-  } = {},
+  fabConfig = emptyFabConfig,
+  configStore,
+  translationProgress,
   processActions,
   getSelectionEnabled = selectionUnavailable,
 }) {
   const i18n = useI18n();
+  const initialConfig = useCallback(() => fabConfig, [fabConfig]);
+  const config = useSyncExternalStore(
+    configStore?.subscribe || emptySubscribe,
+    configStore?.getSnapshot || initialConfig
+  );
+  const {
+    x: fabX,
+    y: fabY,
+    edge: fabEdge,
+    fabClickAction = DEFAULT_FAB.fabClickAction,
+  } = config;
+  const progress = useSyncExternalStore(
+    translationProgress?.subscribe || emptySubscribe,
+    translationProgress?.getSnapshot || idleProgress
+  );
+  const busy = isTranslationBusy(progress);
+  const statusLabel = translationProgressLabel(progress);
+  const appearance = getFabAppearance(config, progress.phase);
   // Use the current tab's runtime state, which can differ from stored settings.
   const selectionEnabled = useSyncExternalStore(
     subscribeSelectionEnabled,
@@ -284,7 +310,7 @@ export function ContentFabContent({
       key="fab"
       snapEdge // Keep the idle FAB partially hidden at the viewport edge.
       fitContent // The fixed menu must not be constrained by the 56px FAB wrapper.
-      expanded={opensMenu && open} // Keep the anchor fully revealed while the menu is open.
+      expanded={busy || (opensMenu && open)} // Keep the anchor fully revealed while the menu is open.
       {...fabProps}
       show={showFab}
       onStart={handleStart}
@@ -299,9 +325,24 @@ export function ContentFabContent({
           aria-haspopup={opensMenu ? "menu" : undefined}
           aria-controls={opensMenu && open ? "kt-content-fab-menu" : undefined}
           aria-label={i18n("translate")}
+          aria-busy={busy}
+          aria-describedby="kt-content-fab-progress"
+          data-translation-state={progress.phase}
+          title={`${statusLabel}。${opensMenu ? "点击打开翻译菜单" : progress.enabled ? "点击停止翻译" : "点击开始翻译"}`}
+          style={{
+            "--kt-fab-fill": appearance.backgroundColor,
+            "--kt-fab-ink": appearance.color,
+          }}
           onClick={handleClick}
         >
-          {opensMenu ? (
+          {busy && (
+            <span className="kt-content-fab-progress-ring" aria-hidden="true" />
+          )}
+          {progress.phase === "error" ? (
+            <ErrorOutlineRoundedIcon />
+          ) : progress.phase === "done" && !(opensMenu && open) ? (
+            <CheckRoundedIcon />
+          ) : opensMenu ? (
             <SpeedDialIcon
               icon={<TranslateIcon />}
               openIcon={<CloseRoundedIcon />}
@@ -313,6 +354,15 @@ export function ContentFabContent({
         </Fab>
       }
     >
+      <span
+        id="kt-content-fab-progress"
+        className="kt-content-fab-live"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {statusLabel}
+      </span>
       <Popper
         popperRef={popperRef}
         open={opensMenu && open && Boolean(anchorRef.current)}

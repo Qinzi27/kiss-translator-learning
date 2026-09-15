@@ -69,6 +69,7 @@ jest.mock("./translator", () => ({
     const instance = {
       setting: args.setting,
       rule: args.rule,
+      translationProgress: { getSnapshot: jest.fn(), subscribe: jest.fn() },
       stop: jest.fn(function stop() {
         this.rule.transOpen = "false";
       }),
@@ -191,6 +192,7 @@ function setupMockConstructors() {
     const instance = {
       setting: args.setting,
       rule: args.rule,
+      translationProgress: { getSnapshot: jest.fn(), subscribe: jest.fn() },
       stop: jest.fn(function stop() {
         this.rule.transOpen = "false";
       }),
@@ -338,7 +340,10 @@ describe("TranslatorManager SPA lifecycle", () => {
   });
 
   test.each([
-    { action: "trans-putrule", args: { injectJs: "synthetic", apiSlug: "other" } },
+    {
+      action: "trans-putrule",
+      args: { injectJs: "synthetic", apiSlug: "other" },
+    },
     { action: "trans-putrule", args: { transStartHook: "synthetic" } },
     { action: "trans-toggle", args: { enabled: true } },
     { action: "trans-toggle" },
@@ -350,42 +355,72 @@ describe("TranslatorManager SPA lifecycle", () => {
   ])("rejects page-controlled CustomEvent action $action", (message) => {
     const manager = createManager();
     manager.start();
-    window.dispatchEvent(new CustomEvent("kiss-translator", { detail: message }));
+    window.dispatchEvent(
+      new CustomEvent("kiss-translator", { detail: message })
+    );
     const translator = mockTranslatorInstances[0];
-    for (const method of ["updateRule", "toggle", "enable", "disable", "toggleStyle", "toggleTransOnly"]) {
+    for (const method of [
+      "updateRule",
+      "toggle",
+      "enable",
+      "disable",
+      "toggleStyle",
+      "toggleTransOnly",
+    ]) {
       expect(translator[method]).not.toHaveBeenCalled();
     }
     expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
-    expect(mockInputTranslatorInstances[0].handleTranslate).not.toHaveBeenCalled();
+    expect(
+      mockInputTranslatorInstances[0].handleTranslate
+    ).not.toHaveBeenCalled();
   });
 
   test("only accepts explicit stop from the public event and strips its envelope", () => {
     createManager().start();
-    window.dispatchEvent(new CustomEvent("kiss-translator", {
-      detail: { action: "trans-toggle", args: { enabled: false }, fromExt: true },
-    }));
+    window.dispatchEvent(
+      new CustomEvent("kiss-translator", {
+        detail: {
+          action: "trans-toggle",
+          args: { enabled: false },
+          fromExt: true,
+        },
+      })
+    );
     expect(mockTranslatorInstances[0].disable).toHaveBeenCalledTimes(1);
     expect(require("./iframe").sendIframeMsg).toHaveBeenCalledWith(
-      "trans-toggle", { enabled: false }
+      "trans-toggle",
+      { enabled: false }
     );
   });
 
-  test.each([false, true])("postMessage cannot elevate rule changes (userscript: %s)", (isUserscript) => {
-    createManager({ isIframe: true, isUserscript }).start();
-    window.dispatchEvent(new MessageEvent("message", {
-      source: window.parent,
-      origin: "https://untrusted.example",
-      data: { action: "trans-putrule", args: { injectJs: "synthetic" }, fromExt: true },
-    }));
-    expect(mockTranslatorInstances[0].updateRule).not.toHaveBeenCalled();
-    expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
-  });
+  test.each([false, true])(
+    "postMessage cannot elevate rule changes (userscript: %s)",
+    (isUserscript) => {
+      createManager({ isIframe: true, isUserscript }).start();
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: window.parent,
+          origin: "https://untrusted.example",
+          data: {
+            action: "trans-putrule",
+            args: { injectJs: "synthetic" },
+            fromExt: true,
+          },
+        })
+      );
+      expect(mockTranslatorInstances[0].updateRule).not.toHaveBeenCalled();
+      expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
+    }
+  );
 
   test.each([
     {},
     { id: "another-extension", url: trustedSender.url },
     { id: "test-extension", url: "https://untrusted.example" },
-    { id: "test-extension", url: "chrome-extension://another-extension/options.html" },
+    {
+      id: "test-extension",
+      url: "chrome-extension://another-extension/options.html",
+    },
     { id: "test-extension", url: "not-a-url" },
     { id: "test-extension", tab: { id: 1 } },
     { id: "test-extension", frameId: 0 },
@@ -395,14 +430,23 @@ describe("TranslatorManager SPA lifecycle", () => {
     { id: "test-extension", origin: "https://untrusted.example" },
     { id: "test-extension", origin: "null" },
     { id: "test-extension", origin: "chrome-extension://another-extension" },
-  ])("rejects an untrusted runtime sender without returning settings", (sender) => {
-    createManager().start();
-    const handler = browser.runtime.onMessage.addListener.mock.calls[0][0];
-    const respond = jest.fn();
-    expect(handler({ action: "trans-putrule", args: { apiSlug: "other" } }, sender, respond)).toBe(false);
-    expect(mockTranslatorInstances[0].updateRule).not.toHaveBeenCalled();
-    expect(respond).not.toHaveBeenCalled();
-  });
+  ])(
+    "rejects an untrusted runtime sender without returning settings",
+    (sender) => {
+      createManager().start();
+      const handler = browser.runtime.onMessage.addListener.mock.calls[0][0];
+      const respond = jest.fn();
+      expect(
+        handler(
+          { action: "trans-putrule", args: { apiSlug: "other" } },
+          sender,
+          respond
+        )
+      ).toBe(false);
+      expect(mockTranslatorInstances[0].updateRule).not.toHaveBeenCalled();
+      expect(respond).not.toHaveBeenCalled();
+    }
+  );
 
   test.each([
     { id: "test-extension" },
@@ -422,21 +466,32 @@ describe("TranslatorManager SPA lifecycle", () => {
     createManager().start();
     const handler = browser.runtime.onMessage.addListener.mock.calls[0][0];
     const respond = jest.fn();
-    const message = { action: "trans-toggle", sender: { id: "test-extension" }, fromExt: true };
+    const message = {
+      action: "trans-toggle",
+      sender: { id: "test-extension" },
+      fromExt: true,
+    };
     expect(handler(message, {}, respond)).toBe(false);
-    window.dispatchEvent(new CustomEvent("kiss-translator", { detail: message }));
+    window.dispatchEvent(
+      new CustomEvent("kiss-translator", { detail: message })
+    );
     expect(mockTranslatorInstances[0].toggle).not.toHaveBeenCalled();
     expect(respond).not.toHaveBeenCalled();
   });
 
   test("preserves trusted extension and internal editor rule changes without DOM forwarding", () => {
     createManager().start();
-    const rule = { apiSlug: "saved-service", transStartHook: "({text}) => ({text})" };
+    const rule = {
+      apiSlug: "saved-service",
+      transStartHook: "({text}) => ({text})",
+    };
     sendRuntimeMessage({ action: "trans-putrule", args: rule });
     const processActions = PopupManager.mock.calls[0][0].processActions;
     processActions({ action: "trans-putrule", args: rule });
     expect(mockTranslatorInstances[0].updateRule).toHaveBeenCalledTimes(2);
-    expect(mockTranslatorInstances[0].updateRule).toHaveBeenLastCalledWith(rule);
+    expect(mockTranslatorInstances[0].updateRule).toHaveBeenLastCalledWith(
+      rule
+    );
     expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
   });
 
@@ -590,33 +645,39 @@ describe("TranslatorManager SPA lifecycle", () => {
     expect(browser.runtime.onMessage.addListener).toHaveBeenCalledTimes(1);
   });
 
-  test.each(["background.js", "popup.html", "options.html"])("trusted %s can open selection translation through the private bus", (senderPage) => {
-    const manager = createManager({ transboxOnly: true });
-    const eventHandler = jest.fn();
-    manager.start();
-    const unsubscribe = subscribeInternalMessage(eventHandler);
-    const pageListener = jest.fn();
-    document.addEventListener("kiss-inner", pageListener);
+  test.each(["background.js", "popup.html", "options.html"])(
+    "trusted %s can open selection translation through the private bus",
+    (senderPage) => {
+      const manager = createManager({ transboxOnly: true });
+      const eventHandler = jest.fn();
+      manager.start();
+      const unsubscribe = subscribeInternalMessage(eventHandler);
+      const pageListener = jest.fn();
+      document.addEventListener("kiss-inner", pageListener);
 
-    const runtimeHandler =
-      browser.runtime.onMessage.addListener.mock.calls[0][0];
-    const sendResponse = jest.fn();
-    runtimeHandler(
-      { action: "open-tranbox", args: { text: "hello" } },
-      { ...trustedSender, url: `chrome-extension://test-extension/${senderPage}` },
-      sendResponse
-    );
+      const runtimeHandler =
+        browser.runtime.onMessage.addListener.mock.calls[0][0];
+      const sendResponse = jest.fn();
+      runtimeHandler(
+        { action: "open-tranbox", args: { text: "hello" } },
+        {
+          ...trustedSender,
+          url: `chrome-extension://test-extension/${senderPage}`,
+        },
+        sendResponse
+      );
 
-    expect(eventHandler).toHaveBeenCalledTimes(1);
-    expect(eventHandler.mock.calls[0][0]).toEqual({
-      action: "open-tranbox",
-      args: { text: "hello" },
-    });
+      expect(eventHandler).toHaveBeenCalledTimes(1);
+      expect(eventHandler.mock.calls[0][0]).toEqual({
+        action: "open-tranbox",
+        args: { text: "hello" },
+      });
 
-    expect(pageListener).not.toHaveBeenCalled();
-    unsubscribe();
-    document.removeEventListener("kiss-inner", pageListener);
-  });
+      expect(pageListener).not.toHaveBeenCalled();
+      unsubscribe();
+      document.removeEventListener("kiss-inner", pageListener);
+    }
+  );
 
   test.each([true, false])(
     "keeps reopened Popup toggles in sync in transbox-only mode from %s",
@@ -797,6 +858,30 @@ describe("TranslatorManager SPA lifecycle", () => {
     expect(
       mockTranslatorInstances[0].toggleInputTranslate
     ).toHaveBeenCalledTimes(1);
+  });
+
+  test("binds FAB progress to the current engine and retains live appearance on runtime restart", () => {
+    const manager = createManager();
+    manager.start();
+    expect(FabManager.mock.calls[0][0].translationProgress).toBe(
+      mockTranslatorInstances[0].translationProgress
+    );
+    const previous = FabManager.mock.calls[0][0].translationProgress;
+    mockFabInstances[0].getConfig = () => ({
+      isHide: false,
+      idleColor: "#123456",
+      x: 50,
+    });
+    manager.restart("new-page");
+    expect(FabManager.mock.calls[1][0].translationProgress).toBe(
+      mockTranslatorInstances[1].translationProgress
+    );
+    expect(FabManager.mock.calls[1][0].translationProgress).not.toBe(previous);
+    expect(FabManager.mock.calls[1][0].fabConfig).toEqual({
+      isHide: false,
+      idleColor: "#123456",
+      x: 50,
+    });
   });
 
   test("reports live selection availability to the FAB after toggles and restart", () => {

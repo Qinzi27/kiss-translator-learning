@@ -68,11 +68,19 @@ function isTrustedExtensionSender(sender) {
     // Chrome's native MessageSender.url is optional for worker contexts. This
     // fallback is only used on runtime.onMessage, never for page-provided data.
     if (sender.url === undefined || sender.url === "") {
-      if (sender.tab !== undefined || sender.frameId !== undefined ||
-          sender.documentId !== undefined || sender.documentLifecycle !== undefined ||
-          sender.nativeApplication !== undefined) return false;
-      return sender.origin === undefined || sender.origin === "" ||
-        sender.origin === `${root.protocol}//${root.host}`;
+      if (
+        sender.tab !== undefined ||
+        sender.frameId !== undefined ||
+        sender.documentId !== undefined ||
+        sender.documentLifecycle !== undefined ||
+        sender.nativeApplication !== undefined
+      )
+        return false;
+      return (
+        sender.origin === undefined ||
+        sender.origin === "" ||
+        sender.origin === `${root.protocol}//${root.host}`
+      );
     }
     const source = new URL(sender.url);
     return source.protocol === root.protocol && source.host === root.host;
@@ -326,6 +334,7 @@ export default class TranslatorManager {
       this._fabManager = new FabManager({
         processActions: this.#processActions.bind(this),
         fabConfig: this.#cloneConfig(this.#fabConfig),
+        translationProgress: this._translator.translationProgress,
         getSelectionEnabled: () => Boolean(this._transboxManager?.isEnabled()),
       });
     }
@@ -390,7 +399,9 @@ export default class TranslatorManager {
     return {
       setting,
       rule,
-      fabConfig: this.#cloneConfig(this.#fabConfig),
+      fabConfig: this.#cloneConfig(
+        this._fabManager?.getConfig?.() || this.#fabConfig
+      ),
       favWords: this.#cloneConfig(this.#favWords),
     };
   }

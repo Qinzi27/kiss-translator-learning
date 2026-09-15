@@ -18,9 +18,11 @@ describe("content FAB Material 3 shape", () => {
     expect(baseRule).toContain("min-width: 56px");
     expect(baseRule).toContain("min-height: 56px");
     expect(baseRule).toContain("border-radius: 16px");
-    expect(baseRule).toContain("background-color: var(--kt-pric)");
+    expect(baseRule).toContain(
+      "background-color: var(--kt-fab-fill, var(--kt-pric))"
+    );
     expect(baseRule).not.toMatch(/transition:[^;]*border-radius/);
-    expect(hoverRule).toContain("var(--kt-onpric) 8%");
+    expect(hoverRule).toContain("var(--kt-fab-ink, var(--kt-onpric)) 8%");
     expect(hoverRule).not.toContain("border-radius");
     expect(activeStateRule).not.toContain("border-radius");
     expect(ACTION_STYLES).not.toContain("border-radius: 999px");
@@ -36,7 +38,7 @@ describe("content FAB Material 3 shape", () => {
 
   test("overrides MUI state colors while keeping compact menu shapes", () => {
     expect(ACTION_STYLES).toMatch(
-      /\.kt-content-fab\.MuiFab-root\.Mui-focusVisible,[\s\S]*?\.kt-content-fab\.MuiFab-root:active\s*\{[^}]*var\(--kt-onpric\) 10%/
+      /\.kt-content-fab\.MuiFab-root\.Mui-focusVisible,[\s\S]*?\.kt-content-fab\.MuiFab-root:active\s*\{[^}]*var\(--kt-fab-ink, var\(--kt-onpric\)\) 10%/
     );
     expect(ACTION_STYLES).toMatch(
       /\.kt-content-fab-menu\s*\{[^}]*border-radius:\s*4px;/
@@ -62,4 +64,19 @@ describe("content FAB Material 3 shape", () => {
       )
     ).toBe(true);
   });
+});
+
+test("busy progress is visible without motion when reduced motion is requested", () => {
+  expect(ACTION_STYLES).toContain("kt-fab-progress-spin");
+  const reduced = getCssAtRuleBodies(
+    ACTION_STYLES,
+    "@media (prefers-reduced-motion: reduce)"
+  );
+  expect(
+    reduced.some(
+      (body) =>
+        body.includes("animation: none") &&
+        body.includes("border-style: dashed")
+    )
+  ).toBe(true);
 });

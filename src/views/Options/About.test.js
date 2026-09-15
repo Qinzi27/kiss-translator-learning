@@ -73,7 +73,7 @@ test("loads project details only after expansion", () => {
   expect(useI18nMd).toHaveBeenCalledTimes(1);
 });
 
-test("learning edition shows a local update workflow and fork download without checking online", () => {
+test("learning edition links to the Chrome update panel without checking online", () => {
   act(() => root.render(<About />));
 
   expect(container.querySelector(".kt-about-hero__version").textContent).toBe(
@@ -86,13 +86,10 @@ test("learning edition shows a local update workflow and fork download without c
   expect(help.textContent).toContain("更新插件.command");
   expect(help.textContent).toContain("更新插件.bat");
   expect(help.textContent).toContain("重新加载");
-  expect(help.textContent).toContain("原有设置会保留");
-  expect(help.textContent).toContain("不能直接执行电脑上的脚本");
+  expect(help.textContent).toContain("Chrome 已加载");
   const download = help.querySelector("a");
-  expect(download.textContent).toBe("手动下载学习版安装包");
-  expect(download.href).toBe(process.env.REACT_APP_RELEASES_URL);
-  expect(download.target).toBe("_blank");
-  expect(download.rel).toContain("noopener");
+  expect(download.textContent).toBe("打开更新面板");
+  expect(download.getAttribute("href")).toBe("#/updates");
   expect(
     container.querySelector('a[href="https://upstream.example"]')
   ).toBeNull();
@@ -100,22 +97,13 @@ test("learning edition shows a local update workflow and fork download without c
   expect(global.fetch).not.toHaveBeenCalled();
 });
 
-test("one-click update button only reveals local instructions without navigation or requests", () => {
+test("primary update action stays in the extension options", () => {
   act(() => root.render(<About />));
-  const heading = container.querySelector("#kt-local-update-title");
-  heading.scrollIntoView = jest.fn();
-  const button = Array.from(container.querySelectorAll("button")).find(
-    (element) => element.textContent === "使用一键更新"
+  const button = container.querySelector(
+    '.kt-about-hero__actions a[href="#/updates"]'
   );
-  const previousUrl = window.location.href;
-  expect(button.hasAttribute("href")).toBe(false);
-
-  act(() => button.click());
-
-  expect(heading.scrollIntoView).toHaveBeenCalledWith({ block: "start" });
-  expect(document.activeElement).toBe(heading);
-  expect(window.location.href).toBe(previousUrl);
-  expect(useI18nMd).not.toHaveBeenCalled();
+  expect(button.textContent).toBe("在 Chrome 中更新");
+  expect(button.target).toBe("");
   expect(global.fetch).not.toHaveBeenCalled();
 });
 

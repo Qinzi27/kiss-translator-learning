@@ -19,6 +19,7 @@ import {
 } from "./prompt";
 import { GLOBAL_KEY } from "./rules";
 import { DEFAULT_CUSTOM_STYLES } from "./styles";
+import { FAB_APPEARANCE_DEFAULTS } from "../libs/fabAppearance";
 
 // --- 默认系统快捷键映射 ---
 export const OPT_SHORTCUT_TRANSLATE = "toggleTranslate"; // 切换整页双语翻译
@@ -261,6 +262,7 @@ export const DEFAULT_MOUSE_HOVER_SETTING = {
 
 // --- 悬浮球默认设置，独立存储于 STOKEY_FAB ---
 export const DEFAULT_FAB = {
+  ...FAB_APPEARANCE_DEFAULTS,
   isHide: false,
   hideExceptionList: "",
   fabClickAction: 1, // 单击开启整页双语翻译，再次单击收起译文

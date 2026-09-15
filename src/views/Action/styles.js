@@ -13,23 +13,23 @@ export const ACTION_STYLES = String.raw`
   padding: 0;
   border: 0;
   border-radius: 16px;
-  background-color: var(--kt-pric);
+  background-color: var(--kt-fab-fill, var(--kt-pric));
   box-shadow: var(--kt-shadow-2);
-  color: var(--kt-onpric);
+  color: var(--kt-fab-ink, var(--kt-onpric));
   cursor: pointer;
   transition: background-color .2s ease, box-shadow .2s ease, transform .2s var(--kt-spring);
 }
 @media (hover: hover) {
   .kt-content-fab.MuiFab-root:hover {
-    background-color: var(--kt-pric);
-    background-color: color-mix(in srgb, var(--kt-onpric) 8%, var(--kt-pric));
+    background-color: var(--kt-fab-fill, var(--kt-pric));
+    background-color: color-mix(in srgb, var(--kt-fab-ink, var(--kt-onpric)) 8%, var(--kt-fab-fill, var(--kt-pric)));
   }
 }
 .kt-content-fab.MuiFab-root.Mui-focusVisible,
 .kt-content-fab.MuiFab-root[aria-expanded="true"],
 .kt-content-fab.MuiFab-root:active {
-  background-color: var(--kt-pric);
-  background-color: color-mix(in srgb, var(--kt-onpric) 10%, var(--kt-pric));
+  background-color: var(--kt-fab-fill, var(--kt-pric));
+  background-color: color-mix(in srgb, var(--kt-fab-ink, var(--kt-onpric)) 10%, var(--kt-fab-fill, var(--kt-pric)));
 }
 .kt-content-fab.MuiFab-root:active { transform: scale(.96); }
 .kt-content-fab.MuiFab-root.Mui-focusVisible { outline: none; box-shadow: var(--kt-shadow-2), inset 0 0 0 3px var(--kt-pri); }
@@ -44,4 +44,13 @@ export const ACTION_STYLES = String.raw`
 .kt-content-fab-menu__item:active { transform: scale(.97); }
 .kt-content-fab-menu__item .MuiListItemIcon-root { min-width: 24px; color: var(--kt-pri); }
 .kt-content-fab-menu__item svg { width: 19px; height: 19px; }
+
+.kt-content-fab-progress-ring { position: absolute; inset: 4px; border: 2px solid currentColor; border-left-color: transparent; border-right-color: transparent; border-radius: 50%; pointer-events: none; animation: kt-fab-progress-spin 1s linear infinite; }
+.kt-content-fab[data-translation-state="error"] { outline: 3px solid currentColor; outline-offset: 2px; }
+.kt-content-fab-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; pointer-events: none; }
+@keyframes kt-fab-progress-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .kt-content-fab.MuiFab-root { transition: none; }
+  .kt-content-fab-progress-ring { animation: none; border-style: dashed; }
+}
 `;

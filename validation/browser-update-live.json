@@ -1,0 +1,32 @@
+{
+  "checked_at": "2026-09-15T12:30:41.196Z",
+  "version_name": "2.0.35-learning.6",
+  "policy": "no-google",
+  "offline_rejected_before_fetch": true,
+  "installation_writes": 0,
+  "file_count": 267,
+  "expanded_bytes": 13990456,
+  "requests": [
+    {
+      "host": "api.github.com",
+      "final_host": "api.github.com",
+      "status": 200
+    },
+    {
+      "host": "github.com",
+      "final_host": "release-assets.githubusercontent.com",
+      "status": 200
+    },
+    {
+      "host": "github.com",
+      "final_host": "release-assets.githubusercontent.com",
+      "status": 200
+    },
+    {
+      "host": "github.com",
+      "final_host": "release-assets.githubusercontent.com",
+      "status": 200
+    }
+  ],
+  "scope": "Actual public GitHub download, SHA-256 receipts and ZIP parser; Node runtime, not Chrome FSA installation."
+}

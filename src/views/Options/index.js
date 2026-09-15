@@ -1,5 +1,6 @@
 import { Routes, Route, HashRouter } from "react-router";
 import About from "./About";
+import Updates from "./Updates";
 import Rules from "./Rules";
 import Setting from "./Setting";
 import Layout from "./Layout";
@@ -206,6 +207,7 @@ export default function Options() {
                   <Route path="words" element={<FavWords />} />
                   <Route path="playground" element={<Playgound />} />
                   <Route path="about" element={<About />} />
+                  <Route path="updates" element={<Updates />} />
                 </Route>
               </Routes>
             </HashRouter>

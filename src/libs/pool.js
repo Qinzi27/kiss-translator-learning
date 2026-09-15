@@ -1,6 +1,12 @@
 import { DEFAULT_FETCH_INTERVAL, DEFAULT_FETCH_LIMIT } from "../config";
 import { kissLog } from "./log";
 
+const poolCancelledError = () => {
+  const error = new Error("The task pool was cleared.");
+  error.name = "AbortError";
+  return error;
+};
+
 /**
  * 任务池（TaskPool）
  * 用于控制异步任务（如网络请求）的并发数、最小执行间隔和重试机制，防止请求过于密集被翻译服务封禁。
@@ -16,6 +22,9 @@ class TaskPool {
   #currentConcurrent = 0; // 当前正在执行的任务数
   #lastExecutionTime = 0; // 上一个任务的启动时间戳，用于计算延迟
   #schedulerTimer = null; // 用于调度下一个任务的延迟定时器
+  #generation = 0;
+  #retryTimers = new Map();
+  #activeTasks = new Set();
 
   /**
    * 构造函数
@@ -76,28 +85,49 @@ class TaskPool {
    * @param {object} task - 任务对象，包含执行函数、参数、Promise的回调和当前重试次数
    */
   async #execute(task) {
+    if (task.generation !== this.#generation) {
+      task.reject(poolCancelledError());
+      return;
+    }
     this.#currentConcurrent++;
+    this.#activeTasks.add(task);
     const { fn, args, resolve, reject, retry } = task;
 
     try {
       // 执行传入的异步任务函数
       const res = await fn(args);
-      resolve(res);
+      if (task.generation === this.#generation) resolve(res);
+      else reject(poolCancelledError());
     } catch (err) {
+      // A stopped generation can never schedule another network attempt. An
+      // explicit transport abort is also final, even without a pool reset.
+      if (task.generation !== this.#generation || err?.name === "AbortError") {
+        reject(
+          task.generation !== this.#generation ? poolCancelledError() : err
+        );
+        return;
+      }
       kissLog("task pool", err);
       // 如果发生异常且重试次数未达到上限，则安排延迟重试
       if (retry < this.#maxRetry) {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+          this.#retryTimers.delete(timer);
+          if (task.generation !== this.#generation) {
+            reject(poolCancelledError());
+            return;
+          }
           // 将重试的任务重新放入队列头部，以保证重试任务优先被执行
           this.#pool.unshift({ ...task, retry: retry + 1 });
           this.#scheduleNext();
         }, this.#retryInterval);
+        this.#retryTimers.set(timer, task);
       } else {
         // 达到最大重试次数后，抛出错误并拒绝 Promise
         reject(err);
       }
     } finally {
       // 任务结束，并发数递减，触发下一次调度
+      this.#activeTasks.delete(task);
       this.#currentConcurrent--;
       this.#scheduleNext();
     }
@@ -111,7 +141,14 @@ class TaskPool {
    */
   push(fn, args) {
     return new Promise((resolve, reject) => {
-      this.#pool.push({ fn, args, resolve, reject, retry: 0 });
+      this.#pool.push({
+        fn,
+        args,
+        resolve,
+        reject,
+        retry: 0,
+        generation: this.#generation,
+      });
       this.#scheduleNext();
     });
   }
@@ -133,17 +170,22 @@ class TaskPool {
   }
 
   /**
-   * 清空任务池
-   * // REVIEW: 定时器未清理风险。如果有些任务在 catch 块中，已经处于 setTimeout 延迟重试阶段（重试定时器还未触发），
-   * // 此时调用 clear()，由于这些任务还没有被放回 #pool 队列中，所以 clear() 无法将它们 reject 并清理。
-   * // 当 #retryInterval 延迟到期后，setTimeout 回调仍会触发并把任务 unshift 进 #pool，然后重新触发调度启动，
-   * // 这会导致已经被 clear 清理的请求池重新产生残留的“僵尸重试任务”继续运行。
+   * 清空等待/退避任务并废弃在途结果。通用 fn 的既有 I/O 无法在此撤回；
+   * 在途调用继续占用并发名额直到结束，但不会交付结果或安排重试。
    */
   clear() {
+    this.#generation++;
+    const cancelled = poolCancelledError();
     // 拒绝队列中所有等待执行的任务
     for (const task of this.#pool) {
-      task.reject("the task pool was cleared");
+      task.reject(cancelled);
     }
+    for (const [timer, task] of this.#retryTimers) {
+      clearTimeout(timer);
+      task.reject(cancelled);
+    }
+    this.#retryTimers.clear();
+    for (const task of this.#activeTasks) task.reject(cancelled);
 
     // 清空任务队列
     this.#pool.length = 0;

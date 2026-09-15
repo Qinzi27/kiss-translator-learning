@@ -27,6 +27,7 @@ REQUIRED_DOCUMENTS = (
     "validation/free-api-live.json",
     "validation/pdf-preview.json",
     "validation/updater.json",
+    "validation/browser-update-live.json",
 )
 UPDATER_FILES = ("更新插件.command", "更新插件.bat", "updater/update.py")
 EXCLUDED_SOURCE_FILES = {"PAUSED-HANDOFF.md", "dev-server-check.log"}

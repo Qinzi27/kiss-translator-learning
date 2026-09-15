@@ -1,3 +1,4 @@
+import { createTranslationProgress } from "./translationProgress";
 import { TouchParagraph, touchParent, isTouchExcluded } from "./touchParagraph";
 import { isInBlacklist } from "./blacklist";
 import {
@@ -340,6 +341,12 @@ export class Translator {
   #isJsInjected = false; // 注入用户JS
   #isShadowRootJsInjected = false; //
   #mouseHoverEnabled = false; // 鼠标悬停翻译
+  #progress = createTranslationProgress();
+  #domReadyHandler = null;
+  get translationProgress() {
+    return this.#progress.readonly;
+  }
+
   #enabled = false; // 全局默认状态
   #runId = 0; // 用于中止过期的异步请求
 
@@ -1048,7 +1055,10 @@ export class Translator {
     }
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => this.#run());
+      this.#domReadyHandler = () => this.#run();
+      document.addEventListener("DOMContentLoaded", this.#domReadyHandler, {
+        once: true,
+      });
     } else {
       this.#run();
     }
@@ -1246,9 +1256,17 @@ export class Translator {
     const { transInterval } = this.#setting;
     const rootMargin = this.#rootMargin;
 
-    const pending = new Set();
+    const pending = new Map();
     const flush = debounce(() => {
-      pending.forEach((node) => this.#performSyncNode(node));
+      pending.forEach((finish, node) => {
+        try {
+          this.#performSyncNode(node);
+        } catch {
+          finish("error");
+        } finally {
+          finish();
+        }
+      });
       pending.clear();
     }, transInterval);
 
@@ -1257,7 +1275,8 @@ export class Translator {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             this.#viewNodes.add(entry.target);
-            pending.add(entry.target);
+            if (!pending.has(entry.target))
+              pending.set(entry.target, this.#progress.task());
             flush();
           } else {
             this.#viewNodes.delete(entry.target);
@@ -1502,16 +1521,11 @@ export class Translator {
       true
     );
     document.addEventListener("mouseup", this.#boundMouseUpHandler, true);
-    document.addEventListener(
-      "mousemove",
-      this.#boundMouseHoldMoveHandler,
-      { capture: true, passive: true }
-    );
-    document.addEventListener(
-      "click",
-      this.#boundMouseHoldClickHandler,
-      true
-    );
+    document.addEventListener("mousemove", this.#boundMouseHoldMoveHandler, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("click", this.#boundMouseHoldClickHandler, true);
     window.addEventListener("blur", this.#boundCancelMouseHold);
     document.addEventListener(
       "visibilitychange",
@@ -2537,108 +2551,116 @@ export class Translator {
     }
 
     if (options.valid && !options.valid()) return;
-    const appliedRule = { ...this.#rule };
-    this.#processedNodes.set(node, appliedRule);
-    // 按住操作代次与 runId：语言检测等异步环节完成后据此判断任务是否已过期
-    const generation = options.generation;
-    const runId = this.#runId;
-    if (generation !== undefined) {
-      this.#holdProcessGenerations.set(node, generation);
-    } else {
-      this.#holdProcessGenerations.delete(node);
-    }
-
-    // 提前检测文本
-    if (this.#isInvalidText(node.textContent)) {
-      return;
-    }
-
-    // 提前进行语言检测
-    let deLang = "";
-    const {
-      fromLang = "auto",
-      toLang,
-      splitParagraph = OPT_SPLIT_PARAGRAPH_DISABLE,
-      splitLength = 100,
-    } = this.#rule;
-    const {
-      langDetector,
-      skipLangs = [],
-      translateVariants = true,
-    } = this.#setting;
-    if (fromLang === "auto") {
-      // revert 529
-      deLang = await tryDetectLang(node.textContent, langDetector);
-      // 语言检测期间可能发生了还原、重新触发或停止/重扫：
-      // 任务已失效，不再创建译文容器或发起翻译请求。
-      // 只撤销本任务的标记，不能清除重扫后新任务的状态。
-      if (
-        (options.valid && !options.valid()) ||
-        runId !== this.#runId ||
-        this.#editorPaused ||
-        (generation !== undefined && generation !== this.#holdGeneration)
-      ) {
-        if (this.#processedNodes.get(node) === appliedRule) {
-          this.#processedNodes.delete(node);
-          this.#holdProcessGenerations.delete(node);
-          // 重新开启时，视口同步可能已被旧标记跳过；此时补发当前任务。
-          // 按住操作不能自动重试，关闭或离开视口的节点等待下次触发。
-          if (
-            !options.touch &&
-            generation === undefined &&
-            this.#enabled &&
-            !this.#editorPaused &&
-            node.isConnected &&
-            this.#viewNodes.has(node)
-          ) {
-            return this.#processNode(node);
-          }
-        }
-        return;
-      }
+    const finishProgress = this.#progress.task();
+    try {
+      const appliedRule = { ...this.#rule };
+      this.#processedNodes.set(node, appliedRule);
+      // 按住操作代次与 runId：语言检测等异步环节完成后据此判断任务是否已过期
+      const generation = options.generation;
+      const runId = this.#runId;
       if (generation !== undefined) {
+        this.#holdProcessGenerations.set(node, generation);
+      } else {
         this.#holdProcessGenerations.delete(node);
       }
-      if (
-        deLang &&
-        (isSameTranslationLanguage(deLang, toLang, translateVariants) ||
-          skipLangs.includes(deLang))
-      ) {
-        // 保留处理状态，不做删除
-        // this.#processedNodes.delete(node);
+
+      // 提前检测文本
+      if (this.#isInvalidText(node.textContent)) {
         return;
       }
-    }
 
-    // 切分长段落
-    if (splitParagraph !== OPT_SPLIT_PARAGRAPH_DISABLE) {
-      this.#splitTextNodesBySentence(node, splitParagraph, splitLength);
-    }
+      // 提前进行语言检测
+      let deLang = "";
+      const {
+        fromLang = "auto",
+        toLang,
+        splitParagraph = OPT_SPLIT_PARAGRAPH_DISABLE,
+        splitLength = 100,
+      } = this.#rule;
+      const {
+        langDetector,
+        skipLangs = [],
+        translateVariants = true,
+      } = this.#setting;
+      if (fromLang === "auto") {
+        // revert 529
+        deLang = await tryDetectLang(node.textContent, langDetector);
+        // 语言检测期间可能发生了还原、重新触发或停止/重扫：
+        // 任务已失效，不再创建译文容器或发起翻译请求。
+        // 只撤销本任务的标记，不能清除重扫后新任务的状态。
+        if (
+          (options.valid && !options.valid()) ||
+          runId !== this.#runId ||
+          this.#editorPaused ||
+          (generation !== undefined && generation !== this.#holdGeneration)
+        ) {
+          if (this.#processedNodes.get(node) === appliedRule) {
+            this.#processedNodes.delete(node);
+            this.#holdProcessGenerations.delete(node);
+            // 重新开启时，视口同步可能已被旧标记跳过；此时补发当前任务。
+            // 按住操作不能自动重试，关闭或离开视口的节点等待下次触发。
+            if (
+              !options.touch &&
+              generation === undefined &&
+              this.#enabled &&
+              !this.#editorPaused &&
+              node.isConnected &&
+              this.#viewNodes.has(node)
+            ) {
+              return this.#processNode(node);
+            }
+          }
+          return;
+        }
+        if (generation !== undefined) {
+          this.#holdProcessGenerations.delete(node);
+        }
+        if (
+          deLang &&
+          (isSameTranslationLanguage(deLang, toLang, translateVariants) ||
+            skipLangs.includes(deLang))
+        ) {
+          // 保留处理状态，不做删除
+          // this.#processedNodes.delete(node);
+          return;
+        }
+      }
 
-    if (options.valid && !options.valid()) return;
-    const translations = [];
-    let nodeGroup = [];
-    [...node.childNodes].forEach((child) => {
-      const shouldBreak = this.#shouldBreak(child);
-      const shouldGroup =
-        child.nodeType === Node.ELEMENT_NODE ||
-        child.nodeType === Node.TEXT_NODE;
-      if (!shouldBreak && shouldGroup) {
-        nodeGroup.push(child);
-      } else if (shouldBreak && nodeGroup.length) {
+      // 切分长段落
+      if (splitParagraph !== OPT_SPLIT_PARAGRAPH_DISABLE) {
+        this.#splitTextNodesBySentence(node, splitParagraph, splitLength);
+      }
+
+      if (options.valid && !options.valid()) return;
+      const translations = [];
+      let nodeGroup = [];
+      [...node.childNodes].forEach((child) => {
+        const shouldBreak = this.#shouldBreak(child);
+        const shouldGroup =
+          child.nodeType === Node.ELEMENT_NODE ||
+          child.nodeType === Node.TEXT_NODE;
+        if (!shouldBreak && shouldGroup) {
+          nodeGroup.push(child);
+        } else if (shouldBreak && nodeGroup.length) {
+          translations.push(
+            this.#translateNodeGroup(nodeGroup, node, deLang, options)
+          );
+          nodeGroup = [];
+        }
+      });
+
+      if (nodeGroup.length) {
         translations.push(
           this.#translateNodeGroup(nodeGroup, node, deLang, options)
         );
-        nodeGroup = [];
       }
-    });
-
-    if (nodeGroup.length) {
-      translations.push(
-        this.#translateNodeGroup(nodeGroup, node, deLang, options)
-      );
+      await Promise.all(translations);
+    } catch (error) {
+      finishProgress("error");
+      kissLog("process node error", error?.name || "Error");
+    } finally {
+      finishProgress();
     }
-    if (options.touch) await Promise.all(translations);
   }
 
   // 高亮词汇
@@ -3298,6 +3320,7 @@ export class Translator {
     const hideOrigin = transOnly === "true";
     // 在 try 外声明，供 catch 分支判断本译文容器是否已被还原移除
     let wrapper = null;
+    const progressRunId = this.#runId;
 
     try {
       const [processedString, placeholderMap] = this.#serializeForTranslation(
@@ -3535,6 +3558,7 @@ export class Translator {
         return;
       }
 
+      if (progressRunId === this.#runId) this.#progress.error();
       // 失败重试按钮
       try {
         const lastWrapper = hostNode.querySelector(
@@ -4101,7 +4125,7 @@ overflow-wrap: anywhere !important;`;
   }
 
   // 发起翻译请求
-  #translateFetch(
+  async #translateFetch(
     text,
     deLang = "",
     onStreamChunk = null,
@@ -4133,7 +4157,17 @@ overflow-wrap: anywhere !important;`;
     };
 
     // Saved and subscribed transStartHook scripts are intentionally inert.
-    return apiTranslate(args);
+    const finishProgress = this.#progress.request();
+    try {
+      const result = await apiTranslate(args);
+      finishProgress();
+      return result;
+    } catch (error) {
+      finishProgress(
+        signal?.aborted || error?.name === "AbortError" ? "cancelled" : "error"
+      );
+      throw error;
+    }
   }
 
   // 查找指定节点下所有译文节点
@@ -4609,6 +4643,7 @@ overflow-wrap: anywhere !important;`;
       wrapper.dataset.kissRefreshState = "pending";
       wrapper.setAttribute("aria-busy", "true");
       wrapper.removeAttribute("title");
+      const finishProgress = this.#progress.task();
       try {
         // Serialize detached copies: placeholder preparation must not mutate
         // original links, text nodes, images, or their existing event listeners.
@@ -4671,10 +4706,12 @@ overflow-wrap: anywhere !important;`;
           await this.#animateTranslationRefresh(inner, task, "in");
       } catch (error) {
         if (!valid()) return;
+        finishProgress("error");
         wrapper.dataset.kissRefreshState = "error";
         wrapper.removeAttribute("aria-busy");
         wrapper.title = `新译文未完成，保留原译文：${this.#formatTranslateError(error).slice(0, 180)}`;
       } finally {
+        finishProgress();
         if (current() && wrapper.dataset.kissRefreshState === "pending") {
           wrapper.removeAttribute("aria-busy");
           delete wrapper.dataset.kissRefreshState;
@@ -4688,6 +4725,7 @@ overflow-wrap: anywhere !important;`;
   }
 
   #restartTranslationPreservingCompleted() {
+    this.#progress.start();
     this.#cancelTranslationRefreshes();
     this.#runId += 1;
     this.#holdGeneration += 1;
@@ -5043,9 +5081,11 @@ overflow-wrap: anywhere !important;`;
   enable() {
     if (this.#enabled || this.#editorPaused) return;
     this.#enabled = true;
+    this.#progress.start();
     this.#rule.transOpen = "true";
     this.#runId++;
 
+    try {
     if (this.#isInitialized) {
       if (this.#transAllnow) {
         this.rescan();
@@ -5061,6 +5101,11 @@ overflow-wrap: anywhere !important;`;
     }
 
     isExt && sendBgMsg(MSG_UPDATE_ICON, true);
+    } catch (error) {
+      this.#isInitialized = false;
+      this.#progress.error();
+      kissLog("translation preparation error", error?.name || "Error");
+    }
   }
 
   // 翻译页面标题
@@ -5069,6 +5114,7 @@ overflow-wrap: anywhere !important;`;
     const docInfo = getDocInfo();
     if (!docInfo?.title) return;
 
+    const finishProgress = this.#progress.task();
     try {
       const deLang = await tryDetectLang(docInfo.title);
       if (runId !== this.#runId || this.#editorPaused) return;
@@ -5077,14 +5123,16 @@ overflow-wrap: anywhere !important;`;
       this.#docInfo.title = document.title; // 缓存原标题
       document.title = trText || docInfo.title;
     } catch (err) {
+      finishProgress("error");
       kissLog("tanslate title", err);
-    }
+    } finally { finishProgress(); }
   }
 
   // 关闭翻译
   disable() {
     if (!this.#enabled) return;
     this.#enabled = false;
+    this.#progress.stop();
     this.#rule.transOpen = "false";
     this.#runId++;
     // 关闭翻译时立即废弃语言检测中的按住任务
@@ -5106,6 +5154,7 @@ overflow-wrap: anywhere !important;`;
   // 重新扫描页面
   rescan() {
     if (!this.#isInitialized || this.#editorPaused) return;
+    this.#progress.start(this.#enabled);
     this.#runId++;
     const touchMode = this.#touchController?.mode || "off";
     this.setTouchMode("off");
@@ -5158,6 +5207,8 @@ overflow-wrap: anywhere !important;`;
 
   // 停止运行
   stop({ preserveInjector = false } = {}) {
+    document.removeEventListener("DOMContentLoaded", this.#domReadyHandler);
+    this.#progress.stop();
     this.setTouchMode("off");
     document.removeEventListener(
       EVENT_FAVORITE_WORD_CHANGE,

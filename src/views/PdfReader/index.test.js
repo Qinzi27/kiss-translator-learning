@@ -6,6 +6,7 @@ import { downloadPdf, openPdf, readPdfFile } from "../../libs/pdfDocument";
 import { apiTranslate } from "../../apis";
 import { consumePdfLaunch } from "../../libs/pdfLaunch";
 import { downloadMimePdf } from "../../libs/pdfMimeHandler";
+import { useFab } from "../../hooks/Fab";
 import {
   hashPdfDocument,
   createPdfTranslationContext,
@@ -27,6 +28,7 @@ jest.mock("../../libs/pdfDocument", () => ({
   readPdfFile: jest.fn(),
 }));
 jest.mock("../../apis", () => ({ apiTranslate: jest.fn() }));
+jest.mock("../../hooks/Fab", () => ({ useFab: jest.fn() }));
 jest.mock("../../libs/pdfLaunch", () => ({
   ...jest.requireActual("../../libs/pdfLaunch"),
   consumePdfLaunch: jest.fn(),
@@ -98,6 +100,7 @@ const bytes = new Uint8Array([37, 80, 68, 70, 45]);
 beforeEach(() => {
   window.location.hash = "";
   jest.clearAllMocks();
+  useFab.mockReturnValue({ fab: {} });
   consumePdfLaunch.mockReset().mockResolvedValue(null);
   sessionCache = new Map();
   hashPdfDocument.mockReset().mockResolvedValue("document-hash");
@@ -890,12 +893,27 @@ test("the floating button translates and stops from the reading area", async () 
   await mountReader();
   expect(container.querySelector(".pdf-floating-translate")).toBeNull();
   await chooseFile();
+  const floating = container.querySelector(".pdf-floating-translate");
+  expect(floating.textContent).toBe("译");
+  expect(floating.style.backgroundColor).toBe("rgb(20, 108, 95)");
+  expect(floating.getAttribute("aria-busy")).toBe("false");
   const pending = deferred();
   apiTranslate.mockReturnValue(pending.promise);
   await act(async () =>
     container.querySelector('[aria-label="浮动翻译本页"]').click()
   );
   expect(apiTranslate).toHaveBeenCalledTimes(2);
+  expect(floating.disabled).toBe(false);
+  expect(floating.getAttribute("aria-busy")).toBe("true");
+  expect(floating.style.backgroundColor).toBe("rgb(249, 229, 166)");
+  expect(floating.style.color).toBe("rgb(0, 0, 0)");
+  expect(
+    floating.querySelector(".pdf-floating-translate__ring")
+  ).not.toBeNull();
+  expect(
+    floating.querySelector(".pdf-floating-translate__stop")
+  ).not.toBeNull();
+  expect(floating.title).toContain("点击停止");
   await act(async () =>
     container.querySelector('[aria-label="浮动停止翻译"]').click()
   );
@@ -903,8 +921,66 @@ test("the floating button translates and stops from the reading area", async () 
   expect(container.querySelector('[aria-label="浮动翻译本页"]').disabled).toBe(
     false
   );
+  expect(floating.getAttribute("aria-busy")).toBe("false");
+  expect(floating.textContent).toBe("译");
+  expect(floating.querySelector(".pdf-floating-translate__ring")).toBeNull();
   await act(async () => pending.resolve({ trText: "Ignored" }));
   expect(container.querySelector(".pdf-translation")).toBeNull();
+});
+
+test("PDF floating completion reflects actual current-service results, even with automatic next-page translation enabled", async () => {
+  await mountReader();
+  await chooseFile();
+  await click("翻译本页");
+  const floating = container.querySelector(".pdf-floating-translate");
+  expect(floating.textContent).toBe("✓");
+  expect(floating.style.backgroundColor).toBe("rgb(37, 77, 50)");
+  expect(floating.getAttribute("aria-busy")).toBe("false");
+  expect(floating.disabled).toBe(false);
+  expect(floating.title).toContain("本页译文已就绪");
+  await changeSelect("翻译服务", "local-b");
+  expect(floating.textContent).toBe("译");
+  expect(floating.title).not.toContain("本页译文已就绪");
+  expect(container.querySelectorAll(".pdf-translation")).toHaveLength(2);
+});
+
+test("PDF floating button reflects live color preferences and readable error state", async () => {
+  await mountReader();
+  await chooseFile();
+  useFab.mockReturnValue({
+    fab: { idleColor: "#FFFFFF", busyColor: "#000000", doneColor: "#AABBCC" },
+  });
+  await act(async () => {
+    root.render(<PdfReader />);
+  });
+  const floating = container.querySelector(".pdf-floating-translate");
+  expect(floating.style.backgroundColor).toBe("rgb(255, 255, 255)");
+  expect(floating.style.color).toBe("rgb(0, 0, 0)");
+  apiTranslate.mockRejectedValue(new Error("合成测试服务错误"));
+  await click("翻译本页");
+  expect(floating.textContent).toBe("!");
+  expect(floating.title).toContain("遇到错误");
+  expect(floating.getAttribute("aria-busy")).toBe("false");
+  expect(floating.disabled).toBe(false);
+});
+
+test("PDF floating button is disabled only during file loading while showing a busy pattern", async () => {
+  await mountReader();
+  await chooseFile();
+  const pending = deferred();
+  openPdf.mockReturnValueOnce(pending.promise);
+  await chooseFile("next.pdf");
+  const floating = container.querySelector(".pdf-floating-translate");
+  expect(floating.disabled).toBe(true);
+  expect(floating.getAttribute("aria-busy")).toBe("true");
+  expect(floating.title).toContain("正在读取 PDF");
+  expect(
+    floating.querySelector(".pdf-floating-translate__ring")
+  ).not.toBeNull();
+  expect(floating.querySelector(".pdf-floating-translate__stop")).toBeNull();
+  await act(async () => pending.resolve(documentFixture([["New file."]])));
+  expect(floating.disabled).toBe(false);
+  expect(floating.textContent).toBe("译");
 });
 
 test("stopping while settings are being loaded prevents any queued translation", async () => {

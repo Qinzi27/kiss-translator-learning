@@ -5,6 +5,7 @@ import {
   SETTINGS_VERSION_V2,
   SETTINGS_VERSION_V3,
   DEFAULT_SUBTITLE_SETTING,
+  DEFAULT_FAB,
   OPT_TRANS_DEEPSEEK,
   OPT_TRANS_OPENAI,
   OPT_TRANS_TENCENT,
@@ -98,7 +99,7 @@ describe("settings storage migration", () => {
     };
     window.localStorage.setItem(STOKEY_FAB, JSON.stringify(savedFab));
 
-    await expect(getFabWithDefault()).resolves.toEqual(savedFab);
+    await expect(getFabWithDefault()).resolves.toEqual({ ...DEFAULT_FAB, ...savedFab });
     expect(readStoredJson(STOKEY_FAB)).toEqual(savedFab);
   });
 

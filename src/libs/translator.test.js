@@ -32,10 +32,16 @@ const {
 } = require("../config/rules");
 const { Translator } = require("./translator");
 
+// A native event-loop checkpoint drains the complete promise chain, including
+// request-progress and node-completion bookkeeping. Two Promise.resolve calls
+// stop inside that chain and can observe rendered text before touch pending is
+// cleared. Use the real scheduler so gesture/hover fake timers stay unchanged.
+const drainMicrotasks = () =>
+  new Promise(jest.requireActual("timers").setImmediate);
+
 const flushAsync = async () => {
   jest.runOnlyPendingTimers();
-  await Promise.resolve();
-  await Promise.resolve();
+  await drainMicrotasks();
 };
 
 const createdTranslators = [];
@@ -49,8 +55,7 @@ const hoverNode = async (node, x = 20, y = 20) => {
     })
   );
   jest.advanceTimersByTime(100);
-  await Promise.resolve();
-  await Promise.resolve();
+  await drainMicrotasks();
 };
 
 const createApiSetting = (apiSlug, isDisabled = false) => ({

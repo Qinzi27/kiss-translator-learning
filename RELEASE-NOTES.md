@@ -1,24 +1,24 @@
-# 2.0.35-learning.6 · 本地一键更新
+# 2.0.36-learning.7 · Chrome 内更新与翻译状态
 
-基于 fishjar/kiss-translator 2.0.32 的非官方 GPL-3.0 学习版。此次预发布增加无需打开 GitHub 网页的本地更新工具，保留 PDF 一键双语、后两页预翻译、会话缓存及既有安全修复。
+基于 fishjar/kiss-translator 2.0.32 的非官方 GPL-3.0 学习版。本次预发布增加 Chrome 内更新面板，以及网页和 PDF 侧边按钮的实时翻译状态与可调颜色。
 
 ## 本次更新
 
-- **双击更新。** macOS 运行安装目录里的 `更新插件.command`，Windows 运行 `更新插件.bat`。需要 Python 3.9+ 和能连接 GitHub 的网络，无需登录、Token、Git 或 Node.js。
-- **下载、校验、备份与替换。** 只接收本学习版完整发布，包括预发布。核对同一发布的 SHA-256、清单、版本和大小，安全解压后在原路径替换，保留一份可回退备份。失败时保留或尽力恢复旧文件；支持只检查和手动回退。
-- **保留安装位置与设置。** 不卸载扩展，不读取浏览器配置、API Key、Cookie、PDF 或模型。更新成功后仍需在扩展管理页点一次「重新加载」，并刷新阅读标签。
-- **学习版更新入口。** 关于页展示本地更新步骤；修正原来指向上游仓库的链接，学习版不再自动查询上游站点的版本号。
+- **Chrome 内更新。** 打开插件设置 → 插件更新。首次选择并授权 Chrome 当前加载的 `chrome` 文件夹，检查版本后点击「下载并更新」，完成后点击「重新加载插件」。目录识别、下载校验、备份和恢复在面板中完成，无需打开 GitHub 网页或终端。旧版先更新到本版并重新加载，才会出现入口。
+- **看得见翻译进度。** 点击网页侧边按钮后立即进入准备/排队状态，等待真实请求结束后再显示完成；进度环、颜色和图标区分翻译中、完成及错误。PDF 翻译期间显示进度环和停止图标，按钮仍可停止。切换服务和迟到结果不会串入新一轮状态。
+- **自己调颜色。** 设置 → 概览 → 悬浮翻译按钮颜色，可调整待机、翻译中、完成三种颜色，支持色盘、十六进制输入、预览和恢复默认。网页与 PDF 即时同步，前景自动匹配对比度。
+- **停止后不再重试旧任务。** 清理任务队列同时取消退避重试，旧请求晚到不会继续重试或覆盖新一轮状态；已发送到服务端的请求不能撤回。
 
 ## 下载与使用
 
-- `kiss-translator-learning-chrome.zip`：扩展、许可证、文档和更新工具。首次安装仍在浏览器加载其中的 `chrome` 文件夹。保留同层的 `updater` 文件夹和两个启动器。
-- `kiss-translator-learning-source.zip`：对应 GPL 源码和更新器测试，不含依赖、模型、个人文件或账号配置。
-- `SHA256SUMS.txt` 和 `release-manifest.json`：安装包校验值、版本及对应提交。
+- `kiss-translator-learning-chrome.zip`：扩展、许可证、文档及保留的 Python 更新工具。首次安装仍加载其中的 `chrome` 文件夹。
+- `kiss-translator-learning-source.zip`：对应 GPL 源码与测试，不含依赖、模型、个人文件或账号配置。
+- `SHA256SUMS.txt` 和 `release-manifest.json`：附件校验值、版本及对应提交。
 
-旧版补入工具、Python 准备、回退和排错见 [一键更新说明](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.35-learning.6/UPDATING.md)。初次安装见 [START-HERE](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.35-learning.6/START-HERE.md)，PDF 阅读方式见 [PDF 指南](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.35-learning.6/docs/PDF-READER.md)。
+具体步骤见 [更新说明](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.36-learning.7/UPDATING.md) 和 [安装说明](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.36-learning.7/START-HERE.md)。
 
 ## 验证与边界
 
-本次测试、真实发布下载与临时目录验证结果见 [VALIDATION](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.35-learning.6/VALIDATION.md)。这仍是已解压的学习版，更新工具不能让 Chrome 静默安装文件，更新后需手动重新加载。工具只替换 `chrome` 内容，不自更新外部脚本，也不更新源码、Python、模型或设置；重新加载可能清除 PDF 会话缓存。
+验证记录见 [VALIDATION](https://github.com/Qinzi27/kiss-translator-learning/blob/v2.0.36-learning.7/VALIDATION.md)。更新面板只用于开发者模式安装；文件选择授权由 Chrome 决定。浏览器内更新采用逐文件提交与最多一份 64 MiB 的本机 IndexedDB 备份，不是整个目录原子替换；中断时尝试恢复，强制关闭或失电可能需要下次打开面板手动恢复。更新时保持页面打开，不要同时运行 Python 更新工具。重新加载后刷新阅读标签，PDF 会话缓存可能被清除。
 
-下载仍依赖 GitHub API / 附件网络，断网或被屏蔽时会停止并保留当前版本。校验来自同一发布仓库，不是独立签名。Chrome 153 的 PDF MIME 接管、Windows 启动器及安装后的完整阅读流程仍保留实机验收边界；不把合成测试或打包成功当作全平台验收。
+仅本机离线模式不会联网更新；GitHub 不可达时保留当前文件。校验信息来自同一仓库，不是独立签名。没有新增权限、依赖或共享 Key。真实公开下载与解包已验证；Chrome 原生文件授权/写入/重新加载的完整流程，以及 PDF MIME 实机接管、Windows 启动器仍保留实机验收边界。

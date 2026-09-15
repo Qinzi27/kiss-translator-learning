@@ -15,6 +15,7 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import SelectAllRoundedIcon from "@mui/icons-material/SelectAllRounded";
 import SubtitlesRoundedIcon from "@mui/icons-material/SubtitlesRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+import SystemUpdateAltRoundedIcon from "@mui/icons-material/SystemUpdateAltRounded";
 import { NavLink } from "react-router";
 import Logo from "../../components/Logo";
 import { useI18n } from "../../hooks/I18n";
@@ -111,6 +112,9 @@ export default function Navigator({ open, isMobile = false, onClose }) {
         items: [
           ["playground", "Playground", "/playground", BugReportRoundedIcon],
           ["about", i18n("about"), "/about", InfoRoundedIcon],
+          ...(process.env.REACT_APP_LEARNING_EDITION === "true"
+            ? [["updates", "插件更新", "/updates", SystemUpdateAltRoundedIcon]]
+            : []),
         ],
       },
     ],
@@ -175,20 +179,26 @@ export default function Navigator({ open, isMobile = false, onClose }) {
               {group.label && (
                 <h2 className="kt-options-nav__label">{group.label}</h2>
               )}
-              {group.items.map(([id, label, path, Icon]) => id === "pdf" ? (
-                <PdfReaderButton key={id} navigation onOpened={isMobile ? onClose : undefined} />
-              ) : (
-                <NavLink
-                  className="kt-options-nav__link"
-                  to={path}
-                  end={path === "/"}
-                  key={id}
-                  onClick={isMobile ? onClose : undefined}
-                >
-                  <Icon />
-                  <span>{label}</span>
-                </NavLink>
-              ))}
+              {group.items.map(([id, label, path, Icon]) =>
+                id === "pdf" ? (
+                  <PdfReaderButton
+                    key={id}
+                    navigation
+                    onOpened={isMobile ? onClose : undefined}
+                  />
+                ) : (
+                  <NavLink
+                    className="kt-options-nav__link"
+                    to={path}
+                    end={path === "/"}
+                    key={id}
+                    onClick={isMobile ? onClose : undefined}
+                  >
+                    <Icon />
+                    <span>{label}</span>
+                  </NavLink>
+                )
+              )}
             </section>
           ))
         ) : (

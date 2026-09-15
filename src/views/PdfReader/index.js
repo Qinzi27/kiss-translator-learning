@@ -28,6 +28,8 @@ import {
   PDF_LIVE_RESULT_LIMITS,
 } from "../../libs/pdfLiveResults";
 import PdfAccessControls from "./PdfAccessControls";
+import { useFab } from "../../hooks/Fab";
+import { getFabAppearance } from "../../libs/fabAppearance";
 import "./reader.css";
 
 function PdfCanvas({ pdf, number }) {
@@ -83,6 +85,7 @@ const languageLabel = (value) => (value === "en" ? "英文" : "中文");
 const blockKey = (page, paragraph) => `${page.number}-${paragraph.id}`;
 
 export default function PdfReader() {
+  const { fab } = useFab();
   const [setting, setSetting] = useState(null);
   const [service, setService] = useState("");
   const [fromLang, setFromLang] = useState("en");
@@ -298,6 +301,36 @@ export default function PdfReader() {
   const direction = `${fromLang} → ${toLang}`;
   const selectedLabel = selectedApi?.apiName || selectedApi?.apiType || service;
   const translationSignature = `${service}:${direction}`;
+  const currentPageComplete =
+    currentPage?.paragraphs.length > 0 &&
+    currentPage.paragraphs.every((paragraph) => {
+      const result = results[blockKey(currentPage, paragraph)];
+      return (
+        result?.text &&
+        result.signature === translationSignature &&
+        (!result.contextId || result.contextId === activeContext)
+      );
+    });
+  const floatingPhase =
+    busy === "translate"
+      ? "translating"
+      : busy === "load"
+        ? "preparing"
+        : error
+          ? "error"
+          : currentPageComplete
+            ? "done"
+            : "idle";
+  const floatingTitle =
+    busy === "translate"
+      ? `${progress || "正在翻译"}；点击停止并保留已完成译文`
+      : busy === "load"
+        ? "正在读取 PDF，请稍候"
+        : error
+          ? "翻译或读取遇到错误，请查看页面提示；点击重试翻译本页"
+          : currentPageComplete
+            ? "本页译文已就绪；点击检查本页并预翻译后续两页"
+            : "翻译本页并预翻译后续两页";
 
   function rememberPage(doc, number) {
     const epoch = ++readingStateEpoch.current;
@@ -985,12 +1018,11 @@ export default function PdfReader() {
       {documentData && (
         <button
           className="pdf-floating-translate"
+          data-state={floatingPhase}
+          style={getFabAppearance(fab, floatingPhase)}
           aria-label={busy === "translate" ? "浮动停止翻译" : "浮动翻译本页"}
-          title={
-            busy === "translate"
-              ? "停止翻译并保留已完成译文"
-              : "翻译本页并预翻译后续两页"
-          }
+          aria-busy={!!busy}
+          title={floatingTitle}
           disabled={
             busy === "load" ||
             (!busy &&
@@ -1000,7 +1032,25 @@ export default function PdfReader() {
           }
           onClick={() => (busy === "translate" ? stop() : translate(false))}
         >
-          {busy === "translate" ? "停" : "译"}
+          {busy ? (
+            <span
+              className="pdf-floating-translate__working"
+              aria-hidden="true"
+            >
+              <span className="pdf-floating-translate__ring" />
+              {busy === "translate" && (
+                <span className="pdf-floating-translate__stop" />
+              )}
+            </span>
+          ) : (
+            <span aria-hidden="true">
+              {floatingPhase === "done"
+                ? "✓"
+                : floatingPhase === "error"
+                  ? "!"
+                  : "译"}
+            </span>
+          )}
         </button>
       )}
       <footer className="pdf-footer">

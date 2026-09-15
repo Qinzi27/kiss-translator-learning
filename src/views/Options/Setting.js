@@ -50,6 +50,7 @@ import UploadButton from "./UploadButton";
 import DownloadButton from "./DownloadButton";
 import ValidationInput from "../../hooks/ValidationInput";
 import OverviewHero from "./OverviewHero";
+import FabAppearanceSetting from "./FabAppearanceSetting";
 import { createSettingsExport, mergeSyncedSettings, SAFE_SETTINGS_EXPORT, SETTINGS_SHARING_NOTICE } from "../../libs/sanitizeSettings";
 import {
   NETWORK_POLICIES,
@@ -227,7 +228,7 @@ export default function Settings() {
   const { setting, updateSetting } = useSetting();
   const alert = useAlert();
   // 悬浮查词 FAB 浮球设置 Hook
-  const { fab, updateFab } = useFab();
+  const { fab, updateFab, isLoading: isFabLoading, isSaving: isFabSaving, saveError: fabSaveError } = useFab();
 
   // 基础表单输入状态更改回调
   const handleChange = (e) => {
@@ -347,7 +348,7 @@ export default function Settings() {
                 value={networkPolicy}
                 label="联网策略"
                 onChange={handleChange}
-                helperText="仅本机离线需要预先安装本地翻译服务。策略约束插件内置 HTTP 请求，切换后对新请求生效；不改变网页自身联网，不会自动切换翻译服务。受限模式禁止重定向。"
+                helperText="仅本机离线需要预先安装本地翻译服务。策略约束插件内置 HTTP 请求，切换后对新请求生效；不改变网页自身联网，不会自动切换翻译服务。翻译服务请求不允许重定向。"
               >
                 {NETWORK_POLICIES.map(([value, label]) => (
                   <MenuItem key={value} value={value}>
@@ -631,6 +632,14 @@ export default function Settings() {
             </MenuItem>
           ))}
         </TextField>
+
+        <FabAppearanceSetting
+          fab={fab}
+          updateFab={updateFab}
+          disabled={isFabLoading}
+          isSaving={isFabSaving}
+          saveError={fabSaveError}
+        />
 
         {/* 是否全局隐藏内容页面右侧的悬浮查词小图标 FAB */}
         <TextField

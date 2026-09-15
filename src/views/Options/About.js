@@ -5,53 +5,32 @@ import { useI18n, useI18nMd } from "../../hooks/I18n";
 import Button from "@mui/material/Button";
 import Logo from "../../components/Logo";
 import { SettingsAdvanced } from "./SettingsCard";
-import { useRef } from "react";
 
-function LocalUpdateHelp({ headingRef }) {
+function LocalUpdateHelp() {
   return (
     <section
       className="kt-about-update"
       aria-labelledby="kt-local-update-title"
     >
-      <h2 id="kt-local-update-title" ref={headingRef} tabIndex={-1}>
-        本地一键更新
-      </h2>
+      <h2 id="kt-local-update-title">在 Chrome 中更新</h2>
       <p>
-        在电脑上运行安装包内的更新工具。需要 Python 3.9 或更新版本，不需要
-        Git、Node.js 或访问令牌。
+        首次选择并授权 Chrome 已加载的 chrome
+        文件夹，然后在插件更新面板检查、下载和应用新版。更新后点击“重新加载插件”，再刷新阅读标签。
       </p>
-      <ol>
-        <li>
-          打开已解压的安装包目录，在 <code>chrome</code> 文件夹旁找到更新工具：
-          macOS 双击 <code>更新插件.command</code>；Windows 双击{" "}
-          <code>更新插件.bat</code>。
-        </li>
-        <li>
-          工具运行后才会联网检查版本，自动下载、校验并替换原目录中的插件文件。
-          请等待工具提示更新完成。
-        </li>
-        <li>
-          在浏览器扩展管理页，点击本插件的“重新加载”，再刷新正在阅读的网页或 PDF
-          标签页。
-        </li>
-      </ol>
-      <p className="kt-about-update__note">
-        保持原安装目录，并保留浏览器中已安装的扩展，原有设置会保留。此页面只能显示说明，
-        不能直接执行电脑上的脚本；打开此页不会检查或下载更新。
-      </p>
-      <Button
-        component="a"
-        variant="outlined"
-        href={process.env.REACT_APP_RELEASES_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        手动下载学习版安装包
+      <Button component="a" href="#/updates" variant="outlined">
+        打开更新面板
       </Button>
-      <p className="kt-about-update__fallback">
-        如果原安装包没有更新工具，请先从发布页下载完整安装包。手动更新时，用新包中的
-        <code>chrome</code> 内容替换原安装目录中的对应文件，再重新加载扩展。
+      <p className="kt-about-update__note">
+        打开此页不会联网检查或修改文件。更新面板会核对发布包，保留一份可恢复备份；浏览器可能再次请求目录权限。
       </p>
+      <details>
+        <summary>保留原来的本地更新工具</summary>
+        <p>
+          也可运行安装目录的 更新插件.command（macOS）或
+          更新插件.bat（Windows），需要 Python
+          3.9+。请勿同时运行浏览器和本地两种更新方式。
+        </p>
+      </details>
     </section>
   );
 }
@@ -75,7 +54,6 @@ function AboutDetails() {
 export default function About() {
   const i18n = useI18n();
   const isLearningEdition = process.env.REACT_APP_LEARNING_EDITION === "true";
-  const updateHeadingRef = useRef(null);
 
   return (
     <Box className="kt-about-page">
@@ -89,14 +67,8 @@ export default function About() {
         <small>{i18n("settings_about_license")}</small>
         <div className="kt-about-hero__actions">
           {isLearningEdition ? (
-            <Button
-              variant="contained"
-              onClick={() => {
-                updateHeadingRef.current?.scrollIntoView?.({ block: "start" });
-                updateHeadingRef.current?.focus({ preventScroll: true });
-              }}
-            >
-              使用一键更新
+            <Button component="a" href="#/updates" variant="contained">
+              在 Chrome 中更新
             </Button>
           ) : (
             <Button
@@ -132,7 +104,7 @@ export default function About() {
         </div>
       </section>
 
-      {isLearningEdition && <LocalUpdateHelp headingRef={updateHeadingRef} />}
+      {isLearningEdition && <LocalUpdateHelp />}
 
       <SettingsAdvanced
         className="kt-about-details"
