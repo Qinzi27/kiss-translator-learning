@@ -4,7 +4,7 @@
 
 ## 1. 下载并安装到 Chrome / Edge
 
-从 [GitHub 预发布 v2.0.32-learning.3](https://github.com/Qinzi27/kiss-translator-learning/releases/tag/v2.0.32-learning.3) 下载 `kiss-translator-learning-chrome.zip`。Chrome 和 Edge 使用同一安装包；如果只下载了 GitHub 的 Source code ZIP，须先按本文末尾构建，不能直接加载源码根目录。此版标为预发布，后台网页方式仍属实验性。
+从 [GitHub 预发布 v2.0.33-learning.4](https://github.com/Qinzi27/kiss-translator-learning/releases/tag/v2.0.33-learning.4) 下载 `kiss-translator-learning-chrome.zip`。Chrome 和 Edge 使用同一安装包；如果只下载了 GitHub 的 Source code ZIP，须先按本文末尾构建，不能直接加载源码根目录。此版标为预发布，后台网页方式仍属实验性。
 
 可选：下载同一发布页的四个附件（Chrome ZIP、对应源码 ZIP、`release-manifest.json`、`SHA256SUMS.txt`），放在同一目录核对完整性：macOS 用 `shasum -a 256 -c SHA256SUMS.txt`，Linux 用 `sha256sum -c SHA256SUMS.txt`。Windows PowerShell 用 `Get-FileHash .\kiss-translator-learning-chrome.zip -Algorithm SHA256`，将结果与校验文件中的同名条目比较；源码 ZIP 和 `release-manifest.json` 也同样核对。只下载单个 ZIP 时，可只计算该包的 SHA-256 并比对对应条目。
 
@@ -73,7 +73,9 @@ Windows PowerShell 使用：
 .\.offline\venv\Scripts\python.exe offline\server.py
 ```
 
-保持终端运行，扩展中选择 **仅本机离线** 与 **本机离线 · Argos**。固定接口地址为 `http://127.0.0.1:8765/translate`，Key 留空。这是本机 API 地址，不是扩展安装网址。关闭终端或按 `Ctrl + C` 会停止服务；下次重新运行同一命令即可，不必重新下载模型。
+首次启动会生成配对令牌；复制终端显示的令牌到「翻译服务 → 本机离线 · Argos」的 **Key** 并保存（旧版空 Key 也须补填）。令牌只保存在本机，不要公开。
+
+保持终端运行，扩展中选择 **仅本机离线** 与 **本机离线 · Argos**。固定接口地址为 `http://127.0.0.1:8765/translate`，Key 填写本机配对令牌。这是本机 API 地址，不是扩展安装网址。关闭终端或按 `Ctrl + C` 会停止服务；下次重新运行同一命令即可，不必重新下载模型。
 
 只有中英模型，混合段落可手动选源语言。标签分段会影响上下文、语序和流畅度。Ollama 接口沿用上游，但本学习版未安装或实测，不能把云模型当作离线模型。
 
@@ -103,3 +105,7 @@ HOST=127.0.0.1 PORT=4318 BROWSER=none pnpm start
 阅读入口：`src/views/Action/ContentFab.js` → `src/libs/translatorManager.js` → `src/libs/translator.js` → `src/apis/trans.js`。固定模型指令见 [翻译 Skill](TRANSLATION-SKILL.md)。
 
 基础为 KISS Translator 2.0.32，提交 `2656f564dde5b271a8d3fb31e951a8457e8df41c`。学习版继续采用 GPL-3.0，分发扩展时同时提供对应源码和 `LICENSE`；源码 ZIP 不含 Git 历史。沉浸式翻译仅用于交互参考，没有复制其当前产品实现。
+
+## 安全版升级差异
+
+旧版用户先看 [SECURITY.md](SECURITY.md)。自定义 JavaScript Hook 仅保存、不执行；HTTP 仅接受明确回环地址，远程端点须 HTTPS 且不能重定向。设置导出/同步不再包含密钥、提示词或自定义请求配置；新设备需要补填。旧明文云备份会被拒绝；须按安全说明取出其中的设置对象、核实并显式导入本机，再使用新的空同步位置建立加密同步。

@@ -15,6 +15,7 @@ REQUIRED_DOCUMENTS = (
     "README.md",
     "README.en.md",
     "START-HERE.md",
+    "SECURITY.md",
     "AI-SERVICES.md",
     "TRANSLATION-SKILL.md",
     "VALIDATION.md",

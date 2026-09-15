@@ -986,7 +986,7 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
             }}
             helperText={
               <Box component="pre" sx={{ overflowX: "auto" }}>
-                {i18n("request_hook_helper")}
+                安全版仅保存、不执行。请使用自定义请求头、请求体 JSON 配置接口。
               </Box>
             }
           />
@@ -1002,7 +1002,7 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
             }}
             helperText={
               <Box component="pre" sx={{ overflowX: "auto" }}>
-                {i18n("response_hook_helper")}
+                安全版仅保存、不执行。响应使用所选服务的内置协议解析。
               </Box>
             }
           />
@@ -1462,7 +1462,7 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
                   }}
                   helperText={
                     <Box component="pre" sx={{ overflowX: "auto" }}>
-                      {i18n("request_hook_helper")}
+                      安全版仅保存、不执行。请使用自定义请求头、请求体 JSON 配置接口。
                     </Box>
                   }
                 />
@@ -1478,7 +1478,7 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
                   }}
                   helperText={
                     <Box component="pre" sx={{ overflowX: "auto" }}>
-                      {i18n("response_hook_helper")}
+                      安全版仅保存、不执行。响应使用所选服务的内置协议解析。
                     </Box>
                   }
                 />

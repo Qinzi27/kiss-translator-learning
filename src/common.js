@@ -5,42 +5,20 @@ import {
   getWordsWithDefault,
 } from "./libs/storage";
 import { isIframe } from "./libs/iframe";
-import { genEventName } from "./libs/utils";
-import { handlePing, injectScript } from "./libs/gm";
+import { USERSCRIPT_SETTINGS_DISABLED } from "./libs/gm";
 import { matchRule } from "./libs/rules";
 import { trySyncAllSubRules } from "./libs/subRules";
 import { isInBlacklist } from "./libs/blacklist";
 import { runSubtitle } from "./subtitle/subtitle";
 import { logger } from "./libs/log";
-import { injectInlineJs } from "./libs/injector";
 import TranslatorManager from "./libs/translatorManager";
 
 /**
- * 油猴脚本特权桥接设置。
- * 当用户在浏览器中打开插件设置页时（打包后的 options.html 或是 dev 调试页面），
- * 该函数负责把油猴特权 GM 接口暴露给页面环境，以便设置页面能直接读写油猴配置项。
+ * External userscript settings pages cannot be trusted with GM privileges.
+ * Chrome / Edge options use extension messaging and do not enter this path.
  */
 function runSettingPage() {
-  // 若油猴实际提供了 unsafeWindow (直通宿主 window 权限)，则直接挂载
-  if (hasUnsafeWindowBridge()) {
-    unsafeWindow.GM = GM;
-    unsafeWindow.APP_INFO = {
-      name: process.env.REACT_APP_NAME,
-      version: process.env.REACT_APP_VERSION,
-    };
-  } else {
-    // 否则，回退到注册 CustomEvent 监听器进行间接通信代理
-    const ping = genEventName();
-    window.addEventListener(ping, handlePing);
-    injectInlineJs(
-      `(${injectScript})("${ping}")`,
-      "kiss-translator-options-injector"
-    );
-  }
-}
-
-function hasUnsafeWindowBridge() {
-  return typeof unsafeWindow !== "undefined";
+  showErr(USERSCRIPT_SETTINGS_DISABLED, true);
 }
 
 /**
@@ -57,7 +35,15 @@ function isOptionsPageHref(href) {
     process.env.REACT_APP_OPTIONSPAGE_LOCAL,
   ]
     .filter(Boolean)
-    .some((optionsPage) => href.startsWith(optionsPage));
+    .some((optionsPage) => {
+      try {
+        const target = new URL(optionsPage);
+        const source = new URL(href);
+        return source.origin === target.origin && source.pathname === target.pathname;
+      } catch {
+        return false;
+      }
+    });
 }
 
 /**
@@ -84,7 +70,7 @@ function ensureUserscriptGM() {
  * 在页面顶部弹出一个悬浮的红色错误提示 Banner 框，持续 10 秒后自动淡出。
  * @param {string} message 错误内容信息
  */
-function showErr(message) {
+function showErr(message, persistent = false) {
   const bannerId = "KISS-Translator-Message";
   const existingBanner = document.getElementById(bannerId);
   if (existingBanner) {
@@ -141,7 +127,7 @@ function showErr(message) {
   };
 
   closeButton.onclick = removeBanner;
-  setTimeout(removeBanner, 10000); // 10秒后自动消失
+  if (!persistent) setTimeout(removeBanner, 10000); // 普通错误 10 秒后自动消失
 }
 
 /**
@@ -238,7 +224,7 @@ export async function run(isUserscript = false) {
     if (isUserscript) {
       ensureUserscriptGM();
 
-      // 如果当前是设置面板 URL，先建立设置页专用代理，避免 storage 读写抢跑 GM 桥接。
+      // Never export userscript storage/network privileges to the settings webpage.
       if (isOptionsPageHref(href)) {
         runSettingPage();
         return;

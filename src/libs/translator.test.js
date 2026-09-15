@@ -1,3 +1,9 @@
+// Functional gesture fixtures are synthetic. Trust-boundary rejection is
+// tested separately with the real helper, never claimed as browser input.
+jest.mock("./trustedInteraction", () => ({
+  ...jest.requireActual("./trustedInteraction"),
+  isTrustedUserEvent: jest.fn(() => true),
+}));
 jest.mock("../apis", () => ({
   apiMicrosoftDict: jest.fn(),
   apiTranslate: jest.fn(),
@@ -100,6 +106,77 @@ function createPlainTextTranslator(rule = {}, setting = {}) {
 }
 
 describe("Translator rule styles", () => {
+  test.each([false, true])(
+    "page-created hover/hold cannot upload text, while an internal enable still works (hold: %s)",
+    async (hold) => {
+      require("./trustedInteraction").isTrustedUserEvent.mockImplementation(
+        jest.requireActual("./trustedInteraction").isTrustedUserEvent
+      );
+      document.body.innerHTML = '<main id="root"><p id="target">Public interaction fixture</p></main>';
+      const translator = createTranslator({ transOpen: "false" }, {
+        preInit: true,
+        mouseHoverSetting: {
+          useMouseHover: true, mouseHoverKey: [], mouseHoverKey2: [],
+          mouseHoverKeyHold: hold, mouseHoverKey2Hold: false, mouseHoverHoldDelay: 20,
+        },
+      });
+      const target = document.getElementById("target");
+      await hoverNode(target);
+      target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      jest.advanceTimersByTime(100);
+      await flushAsync();
+      expect(apiTranslate).not.toHaveBeenCalled();
+      translator.enable();
+      await flushAsync();
+      await flushAsync();
+      expect(apiTranslate).toHaveBeenCalled();
+    }
+  );
+
+  test("a page cannot click or press Enter on an injected retry button to resubmit", async () => {
+    require("./trustedInteraction").isTrustedUserEvent.mockImplementation(
+      jest.requireActual("./trustedInteraction").isTrustedUserEvent
+    );
+    apiTranslate.mockRejectedValueOnce(new Error("Synthetic provider failure"));
+    document.body.innerHTML = '<main id="root"><p>Public retry fixture</p></main>';
+    createTranslator();
+    await flushAsync();
+    await flushAsync();
+    const retry = document.querySelector(`.${Translator.KISS_CLASS.retry}`);
+    expect(retry).not.toBeNull();
+    retry.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    retry.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flushAsync();
+    expect(apiTranslate).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([false, true])(
+    "never executes stored or subsequently applied rule scripts (updated rule: %s)",
+    async (updatedRule) => {
+      document.body.innerHTML = '<main id="root"><p>Public fixture article text</p></main>';
+      const scripts = {
+        injectJs: "KT.apiDectect('SYNTHETIC SCRIPT EXECUTED');",
+        transStartHook: "() => ({text: 'SYNTHETIC SCRIPT EXECUTED'})",
+        transEndHook: "({innerNode}) => { innerNode.textContent = 'SYNTHETIC SCRIPT EXECUTED'; }",
+      };
+        const translator = createTranslator({
+          apiSlug: "fixture",
+          ...(updatedRule ? {} : scripts),
+        }, { transApis: [{ ...createApiSetting("fixture"), key: "SYNTHETIC-KEY" }] });
+        if (updatedRule) {
+          translator.updateRule(scripts);
+          translator.rescan();
+        }
+        await flushAsync();
+        await flushAsync();
+        expect(tryDetectLang).not.toHaveBeenCalledWith("SYNTHETIC SCRIPT EXECUTED");
+        expect(apiTranslate.mock.calls[0][0].text).toContain("Public fixture article text");
+        expect(apiTranslate.mock.calls[0][0].apiSetting.key).toBe("SYNTHETIC-KEY");
+        expect(document.querySelector(".kiss-translator-inner").textContent).toBe("Translated");
+        expect(translator.rule).toMatchObject(scripts);
+    }
+  );
+
   test("editor preview shares targets without modifying DOM or sending requests", () => {
     document.body.innerHTML =
       '<main id="root"><article><p id="a">First article text</p><p id="b" class="excluded">Ignored paragraph text</p></article></main>';
@@ -243,8 +320,7 @@ describe("Translator rule styles", () => {
       await flushAsync();
       expect(document.querySelector(selector)).toBe(style);
       expect(document.querySelectorAll(selector)).toHaveLength(1);
-      expect(tryDetectLang).toHaveBeenCalledTimes(1);
-      expect(tryDetectLang).toHaveBeenCalledWith("rule initialization");
+      expect(tryDetectLang).not.toHaveBeenCalledWith("rule initialization");
 
       translator.stop();
       expect(document.querySelector(selector)).toBeNull();
@@ -315,6 +391,7 @@ describe("Translator rule styles", () => {
   let originalMatchMedia;
 
   beforeEach(() => {
+    require("./trustedInteraction").isTrustedUserEvent.mockReturnValue(true);
     jest.useFakeTimers();
     document.documentElement.innerHTML = "<head></head><body></body>";
     apiTranslate.mockResolvedValue({ trText: "Translated", isSame: false });

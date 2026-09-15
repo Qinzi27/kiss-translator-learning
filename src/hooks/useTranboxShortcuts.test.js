@@ -1,3 +1,4 @@
+import { emitInternalMessage } from "../libs/internalEvents";
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import useTranboxShortcuts from "./useTranboxShortcuts";
@@ -57,17 +58,27 @@ function renderShortcuts(props) {
 
 function dispatchOpenTranbox(args) {
   act(() => {
-    document.dispatchEvent(
-      new CustomEvent(EVENT_KISS_INNER, {
-        detail: { action: MSG_OPEN_TRANBOX, args },
-      })
-    );
+    emitInternalMessage({ action: MSG_OPEN_TRANBOX, args });
   });
 }
 
 describe("useTranboxShortcuts", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
+  });
+
+  test("public DOM messages cannot provide translation text or open the panel", () => {
+    const handleOpenTranbox = jest.fn();
+    const handleToggleTranbox = jest.fn();
+    const setShowBox = jest.fn();
+    const view = renderShortcuts({ showBox: false, setShowBox, handleOpenTranbox, handleToggleTranbox });
+    act(() => document.dispatchEvent(new CustomEvent(EVENT_KISS_INNER, {
+      detail: { action: MSG_OPEN_TRANBOX, args: { text: "Synthetic page text" } },
+    })));
+    expect(handleOpenTranbox).not.toHaveBeenCalled();
+    expect(handleToggleTranbox).not.toHaveBeenCalled();
+    expect(setShowBox).not.toHaveBeenCalled();
+    view.unmount();
   });
 
   test("opens with provided text without toggling the visible box closed", () => {

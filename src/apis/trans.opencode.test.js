@@ -142,17 +142,12 @@ test("does not add OpenCode headers to other providers", async () => {
   expect(globalThis.crypto.randomUUID).not.toHaveBeenCalled();
 });
 
-test("the documented hook overrides a session while preserving auth, prompts and stream settings", async () => {
-  const fs = require("fs");
-  const path = require("path");
-  const doc = fs.readFileSync(
-    path.join(__dirname, "../../custom-api_v2.md"),
-    "utf8"
-  );
-  const section = doc
-    .split("## OpenCode 会话请求头")[1]
-    .split("## 谷歌翻译接口")[0];
-  const hook = section.match(/```js\r?\n([\s\S]*?)```/)[1];
+test("stored legacy hooks cannot override declarative session headers or request settings", async () => {
+  const hook = `(_options, req) => {
+    req.headers["x-opencode-session"] = "legacy-hook-session";
+    delete req.headers["X-OpenCode-Session"];
+    return req;
+  }`;
   const options = {
     useStream: true,
     customHeader: JSON.stringify({ "X-OpenCode-Session": "old-session" }),
@@ -167,10 +162,9 @@ test("the documented hook overrides a session while preserving auth, prompts and
   expect(hooked.method).toBe(original.method);
   expect(hookUserMsg).toEqual(userMsg);
   expect(hooked.headers.Authorization).toBe(original.headers.Authorization);
-  expect(hooked.headers[sessionHeader]).toBe(
-    "8fd946a1-bb92-4aa6-9766-724c9e435832"
-  );
-  expect(hooked.headers).not.toHaveProperty("X-OpenCode-Session");
+  expect(hooked.headers).toEqual(original.headers);
+  expect(hooked.headers["X-OpenCode-Session"]).toBe("old-session");
+  expect(hooked.headers).not.toHaveProperty(sessionHeader);
 });
 
 test("stream fallback preserves the session sent by the streaming request", async () => {

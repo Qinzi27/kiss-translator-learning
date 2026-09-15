@@ -9,6 +9,7 @@ import {
   resolveApiPromptList,
 } from "../config";
 import { isolateShadowHost, mountShadowHost } from "./shadowHost";
+import { guardInjectedUi } from "./trustedInteraction";
 
 function resolvePromptProps(props = {}) {
   return {
@@ -28,6 +29,7 @@ export class TransboxManager {
   #cache = null;
   #props = {};
   #cleanupHostMount = null;
+  #cleanupInteractionGuard = null;
 
   constructor(initialProps = {}) {
     this.#props = resolvePromptProps(initialProps);
@@ -54,6 +56,7 @@ export class TransboxManager {
         onReconnect: () => this.#refreshStyles(),
       });
       this.#shadowContainer = this.#container.attachShadow({ mode: "open" });
+      this.#cleanupInteractionGuard = guardInjectedUi(this.#shadowContainer);
       const shadowRootElement = document.createElement("div");
       shadowRootElement.className = `${APP_CONSTS.boxID}_wrapper notranslate`;
       this.#shadowContainer.appendChild(shadowRootElement);
@@ -90,6 +93,8 @@ export class TransboxManager {
   }
 
   disable() {
+    this.#cleanupInteractionGuard?.();
+    this.#cleanupInteractionGuard = null;
     this.#cleanupHostMount?.();
     this.#cleanupHostMount = null;
     this.#reactRoot?.unmount();

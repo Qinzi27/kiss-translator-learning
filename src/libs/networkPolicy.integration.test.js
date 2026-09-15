@@ -35,6 +35,14 @@ describe("policy across real storage and shared API routing", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  test("normal-mode API routing rejects HTTP before sending synthetic credentials", async () => {
+    setPolicy("normal");
+    await expect(apiFetch("http://example.test/translate", {
+      headers: { "X-Api-Key": "SYNTHETIC" },
+    })).rejects.toThrow("HTTPS");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   test("Google API requests are blocked while Microsoft and loopback remain selectable", async () => {
     setPolicy("no-google");
     await expect(

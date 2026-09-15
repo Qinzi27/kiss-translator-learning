@@ -70,7 +70,7 @@ const deriveSyncKey = async (syncKey, salt) => {
 };
 
 /**
- * 尝试识别新版加密 envelope；无法识别时按旧版明文 value 处理。
+ * 识别经过认证的加密 envelope；明文不能作为可信同步数据。
  * @param {string} value 远端同步包中的 value 字符串
  * @returns {Object|null}
  */
@@ -87,7 +87,7 @@ const parseSyncValueEnvelope = (value) => {
       return parsed;
     }
   } catch {
-    // 旧版明文同步数据本身也是普通 JSON 字符串，不需要在这里处理。
+    // Invalid or legacy plaintext is rejected by the caller.
   }
   return null;
 };
@@ -125,7 +125,7 @@ export const encryptSyncValue = async (value, syncKey) => {
 };
 
 /**
- * 解密新版同步 value；旧版明文 value 会原样返回并标记 encrypted=false。
+ * 只解密新版同步 value；绝不自动导入或重加密未经认证的远端明文。
  * @param {string} value 远端同步包中的 value 字符串
  * @param {string} syncKey 用户设定的同步加密口令
  * @returns {Promise<{value: string, encrypted: boolean}>}
@@ -133,7 +133,7 @@ export const encryptSyncValue = async (value, syncKey) => {
 export const decryptSyncValue = async (value, syncKey) => {
   const envelope = parseSyncValueEnvelope(value);
   if (!envelope) {
-    return { value, encrypted: false };
+    throw new Error("云端同步数据未加密或格式无效，已停止同步并保留本机配置。旧备份请先下载、核实后在本机导入，再建立新的加密同步。");
   }
 
   if (
@@ -142,18 +142,18 @@ export const decryptSyncValue = async (value, syncKey) => {
     envelope.kdf !== SYNC_CRYPTO_KDF ||
     envelope.iterations !== SYNC_CRYPTO_ITERATIONS
   ) {
-    throw new Error("Unsupported sync encryption format");
+    throw new Error("云端同步加密格式不受支持，已保留本机配置。");
   }
 
-  const key = await deriveSyncKey(syncKey, base64ToBytes(envelope.salt));
-  const decrypted = await getSubtleCrypto().decrypt(
-    { name: SYNC_CRYPTO_ALG, iv: base64ToBytes(envelope.iv) },
-    key,
-    base64ToBytes(envelope.data)
-  );
-
-  return {
-    value: textDecoder.decode(decrypted),
-    encrypted: true,
-  };
+  try {
+    const key = await deriveSyncKey(syncKey, base64ToBytes(envelope.salt));
+    const decrypted = await getSubtleCrypto().decrypt(
+      { name: SYNC_CRYPTO_ALG, iv: base64ToBytes(envelope.iv) },
+      key,
+      base64ToBytes(envelope.data)
+    );
+    return { value: textDecoder.decode(decrypted), encrypted: true };
+  } catch {
+    throw new Error("无法验证云端同步数据：加密口令错误或数据已损坏，已停止同步并保留本机配置。");
+  }
 };

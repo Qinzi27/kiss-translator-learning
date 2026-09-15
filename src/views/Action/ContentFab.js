@@ -28,7 +28,6 @@ import Draggable from "./Draggable";
 import { SettingProvider } from "../../hooks/Setting";
 import {
   DEFAULT_FAB,
-  EVENT_KISS_INNER,
   MSG_OPEN_OPTIONS,
   MSG_OPEN_TRANBOX,
   MSG_POPUP_TOGGLE,
@@ -43,15 +42,15 @@ import { createMenuKeyDownHandler } from "../../libs/menuFocus";
 import useWindowSize from "../../hooks/WindowSize";
 import { useFullscreenDetect } from "../../hooks/useFullscreenDetect";
 import { ACTION_STYLES } from "./styles";
+import { subscribeInternalMessage } from "../../libs/internalEvents";
 
 const selectionUnavailable = () => false;
 
 function subscribeSelectionEnabled(onChange) {
-  const handleChange = (event) => {
-    if (event.detail?.action === MSG_TRANSBOX_TOGGLE) onChange();
+  const handleChange = (message) => {
+    if (message?.action === MSG_TRANSBOX_TOGGLE) onChange();
   };
-  document.addEventListener(EVENT_KISS_INNER, handleChange);
-  return () => document.removeEventListener(EVENT_KISS_INNER, handleChange);
+  return subscribeInternalMessage(handleChange);
 }
 
 // Flip and shift the menu near viewport edges. The FAB can reach any corner,

@@ -3,12 +3,15 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { APP_CONSTS } from "../config";
 import useSelectionController from "./useSelectionController";
+import { isTrustedUserEvent } from "../libs/trustedInteraction";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-jest.mock("../libs/mobile", () => ({
-  isMobile: false,
-}));
+let mockIsMobile = false;
+jest.mock("../libs/mobile", () => ({ get isMobile() { return mockIsMobile; } }));
+// Existing interaction fixtures represent browser user input. Security cases
+// below explicitly restore the real predicate for synthetic page events.
+jest.mock("../libs/trustedInteraction", () => ({ isTrustedUserEvent: jest.fn() }));
 
 jest.mock("../libs/detectFast", () => {
   const actual = jest.requireActual("../libs/detectFast");
@@ -184,6 +187,8 @@ describe("useSelectionController", () => {
   const originalScrollY = window.scrollY;
 
   beforeEach(() => {
+    mockIsMobile = false;
+    isTrustedUserEvent.mockReturnValue(true);
     jest.useFakeTimers();
     document.body.innerHTML = "";
     currentSelection = null;
@@ -219,6 +224,37 @@ describe("useSelectionController", () => {
     windowGetSelectionSpy.mockRestore();
     documentGetSelectionSpy.mockRestore();
     jest.useRealTimers();
+  });
+
+  test.each([
+    ["select", "mouseup", false], ["select", "touchend", true], ["dblclick", "dblclick", false],
+  ])("ignores synthetic page input in %s mode (%s)", async (triggerMode, eventName, mobile) => {
+    isTrustedUserEvent.mockImplementation(jest.requireActual("../libs/trustedInteraction").isTrustedUserEvent);
+    mockIsMobile = mobile;
+    const controller = renderController({ triggerMode });
+    currentSelection = makeSelection("Synthetic sample", createParagraph("Synthetic sample"));
+    await act(async () => {
+      window.dispatchEvent(new Event(eventName, { bubbles: true }));
+      jest.runOnlyPendingTimers();
+      await Promise.resolve();
+    });
+    expect(controller.state.text).toBe("");
+    expect(controller.state.showBox).toBe(false);
+    expect(controller.state.showBtn).toBe(false);
+    expect(detectLangFast).not.toHaveBeenCalled();
+    act(() => controller.root.unmount());
+  });
+
+  test("document capture cannot translate a synthetic panel selection", async () => {
+    isTrustedUserEvent.mockImplementation(jest.requireActual("../libs/trustedInteraction").isTrustedUserEvent);
+    const controller = renderController({ tranboxInteractMode: "click" });
+    const { host, shadow, wrapper } = createPanelTarget();
+    const paragraph = createParagraph("Synthetic sample", wrapper);
+    currentSelection = makeSelection("Synthetic sample", paragraph);
+    await dispatchPanelMouseup(paragraph, [paragraph, wrapper, shadow, host, document, window]);
+    expect(controller.state.text).toBe("");
+    expect(controller.state.showBox).toBe(false);
+    act(() => controller.root.unmount());
   });
 
   test("keeps page selections pending until the trigger button in click mode", async () => {

@@ -1,28 +1,29 @@
-# 2.0.32-learning.3
+# 2.0.33-learning.4 · 安全更新
 
-基于 fishjar/kiss-translator 2.0.32 的非官方 GPL-3.0 学习版。此版本作为预发布提供，供 Chrome / Edge 开发者模式安装。
+基于 fishjar/kiss-translator 2.0.32 的非官方 GPL-3.0 学习版。提供 Chrome / Edge 开发者模式预发布包，建议旧版用户更新。
 
-## 功能
+## 修复
 
-- 一键展开网页双语译文，再次点击收起；切换服务或语言时保留旧译文，新结果成功后再替换并播放简短擦除动画。
-- 新增 MyMemory 免 Key 机器翻译适配，提供明确点击后才发送的中英双向试用。
-- 8 家 AI API 配置预设、自定义 Chat Completions 兼容 API，以及固定的中英翻译 Skill。
-- 常规联网、屏蔽谷歌、仅本机离线三档插件请求策略；本机 Argos 中英模型准备与服务脚本。
-- 豆包、Kimi 后台网页模式原型，标记为实验功能。
+- 限制网页公开消息和合成输入事件，隔离内部划词消息。
+- 停用所有规则/API JavaScript Hook 与油猴外置设置页特权桥，保留原配置文本。
+- 加密同步拒绝明文降级；设置导出/同步默认脱敏，保护本机凭据不被远端改址或删除带走。
+- 后台网页 AI 严格检查输入框、完整提示及同一区域的发送按钮，避免页面重绘后误发送草稿。
+- Argos 增加本机配对令牌、严格 Host/Origin 和连接/读取限制。
+- 远端请求要求 HTTPS，统一禁止重定向；升级运行、开发及构建依赖。
 
 ## 下载与安装
 
-- `kiss-translator-learning-chrome.zip`：解压后在 `chrome://extensions` 或 `edge://extensions` 开启开发者模式，加载其中的 `chrome` 文件夹；附用户文档与离线准备脚本。
-- `kiss-translator-learning-source.zip`：与扩展对应的完整 GPL 源码，不含依赖、账号配置或模型。
-- `SHA256SUMS.txt`：两个 ZIP 的 SHA-256 校验值。
-- `release-manifest.json`：版本、源码提交、工作区状态和包大小。验证记录见仓库 `VALIDATION.md`。
+- `kiss-translator-learning-chrome.zip`：解压，在 `chrome://extensions` 或 `edge://extensions` 开启开发者模式，加载其中的 `chrome` 文件夹。
+- `kiss-translator-learning-source.zip`：对应完整 GPL 源码，不含依赖、模型和账号配置。
+- `SHA256SUMS.txt`：两个 ZIP 和发布清单的校验值。
+- `release-manifest.json`：版本、源码提交、工作区状态及包大小。
 
-更新已有安装时保留原文件夹位置，替换扩展文件后点击「重新加载」，再刷新阅读页。离线模型需要首次联网下载，未随安装包分发。
+更新时保留原文件夹位置，替换扩展文件，点击「重新加载」，刷新阅读页。**Argos 用户需停止旧服务、更新本版 offline 脚本（保留 .offline 模型目录），重新启动后把本机配对令牌填入服务的 Key。** 新设备不再从本版导出的设置备份获得密钥或提示词。旧明文云同步与自定义脚本的迁移说明见 [SECURITY.md](SECURITY.md)。
 
-## 验证与边界
+## 验证边界
 
-MyMemory 已完成真实中英双向请求和开发网页双语追加验证。Argos 已完成真实模型推理及 macOS 拒绝网络的进程测试。最终 Chrome 包已完成生产构建，尚未在真实扩展环境安装验收。
+安全回归、依赖审计与生产构建记录见 [VALIDATION.md](VALIDATION.md)。此前 MyMemory 已有真实中英双向请求，Argos 已有真实模型断网推理记录；本次安全测试使用本地合成数据，没有调用用户付费 API 或登录聊天账号。
 
-8 家云 AI 预设未使用用户 Key 实调；豆包 / Kimi 网页模式尚未完成真实登录会话验证。免费聊天网站不代表其 API 免费。屏蔽谷歌及仅本机离线策略约束插件请求层，不控制网页自身或整个浏览器的联网。
+8 家 AI 预设未使用用户 Key 实调；豆包 / Kimi 网页模式仍为实验功能，未完成真实登录会话验证。最终安装后的 Chrome / Edge 环境尚需用户验收。免费聊天网站不代表 API 免费，插件联网策略不控制网页自身或整个浏览器的联网。
 
-详细操作见 `START-HERE.md`、`AI-SERVICES.md`、`offline/README.md` 和 `docs/TROUBLESHOOTING.md`。
+详细步骤见 [START-HERE.md](START-HERE.md)、[AI-SERVICES.md](AI-SERVICES.md) 和 [offline/README.md](offline/README.md)。

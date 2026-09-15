@@ -32,7 +32,6 @@ import {
   newI18n,
 } from "../config";
 import { resolveApiPromptSettings } from "../config/prompt";
-import { interpreter } from "./interpreter";
 import { clearFetchPool } from "./pool";
 import { cancelWebAiClientTasks } from "./webAiClient";
 import { debounce, scheduleIdle, genEventName, parseAITerms } from "./utils";
@@ -53,6 +52,7 @@ import { isExt } from "./client";
 import { sendBgMsg } from "./msg";
 import { getDocInfo } from "./docInfo";
 import { visitTranslationTargets } from "./translationTargets";
+import { isTrustedUserEvent } from "./trustedInteraction";
 
 /**
  * @class Translator
@@ -1410,6 +1410,7 @@ export class Translator {
 
   // 跟踪鼠标下的可翻译节点
   #handleMouseMove(event) {
+    if (!isTrustedUserEvent(event)) return;
     this.#hoverPointer = { x: event.clientX, y: event.clientY };
     this.#hoverPointerValid = true;
     if (
@@ -1572,6 +1573,7 @@ export class Translator {
 
   // 鼠标左键按下：等待设定的延迟后触发翻译/还原
   #handleMouseHoldDown(event) {
+    if (!isTrustedUserEvent(event)) return;
     if (event.button !== 0) return;
     const target = event.target;
     if (
@@ -3242,12 +3244,14 @@ export class Translator {
       hidePanelSoon();
     });
     retryIcon.addEventListener("click", (e) => {
+      if (!isTrustedUserEvent(e)) return;
       e.stopPropagation();
       e.preventDefault();
       hidePanel();
       onRetry();
     });
     retryIcon.addEventListener("keydown", (e) => {
+      if (!isTrustedUserEvent(e)) return;
       if (e.key !== "Enter" && e.key !== " ") return;
       e.stopPropagation();
       e.preventDefault();
@@ -3270,7 +3274,6 @@ export class Translator {
     const {
       transTag,
       textStyle,
-      transEndHook,
       transOnly,
       termsStyle,
       textExtStyle,
@@ -3479,11 +3482,8 @@ export class Translator {
         placeholderMap
       );
 
-      // REVIEW: 高安全标准的 Trusted Types 注入机制。
-      // 在页面插入 innerHTML 很容易遭受 DOM-based XSS 跨站脚本攻击。
-      // 特别是在 Chrome 扩展中强灌 innerHTML 会直接触发扩展程序的安全拦截。
-      // 此处将 htmlString 传入 trustedTypesHelper.createHTML 转化为受信任的 TrustedHTML 实例，
-      // 再安全地写入 inner.innerHTML，这完全符合现代高 CSP 标准站点的规范，非常专业。
+      // Sanitize restored provider HTML before writing it to the translation
+      // container. Trusted Types itself does not sanitize untrusted markup.
       const trustedHTML = trustedTypesHelper.createHTML(htmlString);
 
       this.#withViewportAnchor(() => {
@@ -3520,32 +3520,8 @@ export class Translator {
         nodes.forEach((node) => this.#highlightWordsDeeply(node));
       }
 
-      // 翻译完成钩子函数（在隔离沙盒内安全执行用户自定义的译后处理脚本）
-      // REVIEW: 共享 Sval 实例导致 Hook 竞态条件 (Race Condition) 隐患。
-      // 由于 interpreter 是全局单例，当页面中同时有多个并发的 translateNodeGroup 任务异步执行时，
-      // 同步运行的 `interpreter.run('exports.transEndHook = ...')` 会直接覆盖上一个任务尚未执行完毕的 exports.transEndHook 引用。
-      // 这可能导致后一个任务的 Hook 函数被错误地执行多次，或者前一个任务执行了不匹配的、新覆盖的 Hook 函数，出现非预期的运行时状态混乱。
-      if (transEndHook?.trim()) {
-        try {
-          interpreter.run(`exports.transEndHook = ${transEndHook}`);
-          interpreter.exports.transEndHook(
-            {
-              hostNode,
-              parentNode,
-              nodes,
-              wrapperNode: wrapper,
-              innerNode: inner,
-            },
-            {
-              text: processedString,
-              fromLang: deLang || this.#rule.fromLang,
-              toLang,
-            }
-          );
-        } catch (err) {
-          kissLog("transEndHook", err);
-        }
-      }
+      // Rule script text is retained for migration, but never executed in this
+      // security release. Sval's host globals are not a hostile-code sandbox.
     } catch (err) {
       // 容器已被还原移除时丢弃过期失败结果，避免 “Request terminated” 分支的
       // #cleanupDirectTranslations(hostNode) 误删宿主上随后产生的新译文，
@@ -3590,6 +3566,7 @@ export class Translator {
 
   // 获取悬停气泡的样式，如果用户未设置则使用默认样式
   #handleFavoriteMouseOver(event) {
+    if (!isTrustedUserEvent(event)) return;
     const eventTarget = event.composedPath?.()[0] || event.target;
     const highlight = eventTarget.closest?.(
       `.${Translator.KISS_CLASS.highlight}`
@@ -4131,7 +4108,7 @@ overflow-wrap: anywhere !important;`;
     apiSettingOverride = null,
     signal = undefined
   ) {
-    const { toLang, transStartHook } = this.#rule;
+    const { toLang } = this.#rule;
     const fromLang = deLang || this.#rule.fromLang;
     const rawApiSetting = { ...(apiSettingOverride || this.#apiSetting) };
 
@@ -4142,7 +4119,6 @@ overflow-wrap: anywhere !important;`;
     );
 
     const glossary = { ...this.#glossary };
-    const apisMap = this.#apisMap;
 
     const args = {
       text,
@@ -4156,26 +4132,7 @@ overflow-wrap: anywhere !important;`;
       signal,
     };
 
-    // 翻译开始钩子函数（允许用户在翻译请求发送前修改文本、语言或词典配置）
-    // REVIEW: 共享 Sval 实例导致 Hook 竞态条件 (Race Condition) 隐患。
-    // 由于 interpreter 是全局单例，当短时间内有多个并发的 translateFetch 触发时，
-    // 同步执行的 `interpreter.run('exports.transStartHook = ...')` 会直接覆盖上一个翻译请求的 exports.transStartHook。
-    // 这可能导致先前发起的、仍在执行准备阶段的请求，在调用 transStartHook 时执行成了后一个翻译源的钩子逻辑。
-    if (transStartHook?.trim()) {
-      try {
-        interpreter.run(`exports.transStartHook = ${transStartHook}`);
-        const hookResult = interpreter.exports.transStartHook({
-          ...args,
-          apisMap,
-        });
-        if (hookResult) {
-          Object.assign(args, hookResult);
-        }
-      } catch (err) {
-        kissLog("transStartHook", err);
-      }
-    }
-
+    // Saved and subscribed transStartHook scripts are intentionally inert.
     return apiTranslate(args);
   }
 
@@ -5047,7 +5004,7 @@ overflow-wrap: anywhere !important;`;
     this.#transOnlyRevertTarget = null;
   }
 
-  // 注入JS/CSS
+  // Apply user CSS. Rule JavaScript remains inert.
   #initInjector() {
     if (this.#isJsInjected) {
       return;
@@ -5055,43 +5012,16 @@ overflow-wrap: anywhere !important;`;
     this.#isJsInjected = true;
 
     try {
-      // const { injectJs, injectCss } = this.#rule;
-      // if (isExt) {
-      //   injectJs && sendBgMsg(MSG_INJECT_JS, injectJs);
-      //   injectCss && sendBgMsg(MSG_INJECT_CSS, injectCss);
-      // } else {
-      //   injectJs &&
-      //     injectInlineJs(injectJs, "kiss-translator-userinit-injector");
-      //   injectCss && injectInternalCss(injectCss);
-      // }
-
-      const { injectJs, injectCss, toLang } = this.#rule;
+      // Only declarative CSS runs here; saved injectJs text is not evaluated.
+      const { injectCss } = this.#rule;
 
       if (isExt) {
         injectCss && sendBgMsg(MSG_INJECT_CSS, injectCss);
       } else {
         injectCss && injectInternalCss(injectCss);
       }
-
-      if (injectJs?.trim()) {
-        const apiSetting = { ...this.#apiSetting };
-        const glossary = { ...this.#glossary };
-        const apisMap = this.#apisMap;
-        const apiDectect = tryDetectLang;
-        interpreter.import({
-          KT: {
-            apiTranslate,
-            apiDectect,
-            apiSetting,
-            apisMap,
-            toLang,
-            glossary,
-          },
-        });
-        interpreter.run(injectJs);
-      }
     } catch (err) {
-      kissLog("inject js", err);
+      kissLog("inject css", err);
     }
   }
 

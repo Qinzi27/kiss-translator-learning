@@ -43,8 +43,6 @@ import {
   INPUT_PLACE_KEY,
   INPUT_PLACE_MODEL,
   DEFAULT_USER_AGENT,
-  defaultSystemPrompt,
-  defaultSubtitlePrompt,
   defaultNobatchPrompt,
   defaultNobatchUserPrompt,
   defaultDictUserPrompt,
@@ -54,8 +52,6 @@ import {
   INPUT_PLACE_TO_LANG,
   INPUT_PLACE_FROM_LANG,
   INPUT_PLACE_GLOSSARY,
-  defaultSystemPromptXml,
-  defaultSystemPromptLines,
   INPUT_PLACE_SUMMARY,
   INPUT_PLACE_CONTEXT,
   GEMINI25_BUDGETS,
@@ -67,10 +63,8 @@ import {
 } from "../config";
 import { genDeeplFree } from "./deepl";
 import { genBaidu } from "./baidu";
-import { interpreter } from "../libs/interpreter";
 import {
   parseJsonObj,
-  extractJson,
   stripMarkdownCodeBlock,
   parseAITerms,
 } from "../libs/utils";
@@ -1394,10 +1388,9 @@ const genInit = ({
  * @param {*}
  * @returns
  */
-export const genTransReq = async ({ reqHook, ...args }) => {
+export const genTransReq = async (args) => {
   if (args.learningAi) {
     args = resolveLearningAiApi(args);
-    reqHook = "";
   }
   const {
     apiType,
@@ -1528,39 +1521,8 @@ export const genTransReq = async ({ reqHook, ...args }) => {
     headers["x-opencode-session"] = getOpenCodeSessionId({ apiSlug, url });
   }
 
-  // 执行 request hook
-  if (reqHook?.trim() && !events) {
-    try {
-      const req = {
-        url,
-        body,
-        headers,
-        userMsg,
-        method,
-      };
-      interpreter.run(`exports.reqHook = ${reqHook}`);
-      const hookResult = await interpreter.exports.reqHook(
-        {
-          ...args,
-          defaultSystemPrompt,
-          defaultSystemPromptXml,
-          defaultSystemPromptLines,
-          defaultSubtitlePrompt,
-          defaultNobatchPrompt,
-          defaultNobatchUserPrompt,
-          req,
-        },
-        req
-      );
-      if (hookResult && hookResult.url) {
-        return genInit(hookResult);
-      }
-    } catch (err) {
-      kissLog("run req hook", err);
-      throw new Error(`Request hook error: ${err.message}`);
-    }
-  }
-
+  // Legacy reqHook text remains in saved settings, but scripts are never run.
+  // Declarative customHeader/customBody JSON above is the supported override.
   return genInit({ url, body, headers, userMsg, method });
 };
 
@@ -1573,13 +1535,6 @@ export const genTransReq = async ({ reqHook, ...args }) => {
 export const parseTransRes = async (
   res,
   {
-    texts,
-    from,
-    to,
-    fromLang,
-    toLang,
-    langMap,
-    resHook,
     // thinkIgnore,
     history,
     userMsg,
@@ -1588,37 +1543,7 @@ export const parseTransRes = async (
     textFormat = "text",
   }
 ) => {
-  // 执行 response hook
-  if (resHook?.trim()) {
-    try {
-      interpreter.run(`exports.resHook = ${resHook}`);
-      const hookResult = await interpreter.exports.resHook({
-        apiType,
-        userMsg,
-        res,
-        texts,
-        from,
-        to,
-        fromLang,
-        toLang,
-        langMap,
-        extractJson,
-        parseAIRes,
-      });
-      if (hookResult && Array.isArray(hookResult.translations)) {
-        if (history && userMsg && hookResult.modelMsg) {
-          history.add(userMsg, hookResult.modelMsg);
-        }
-        return hookResult.translations;
-      } else if (Array.isArray(hookResult)) {
-        return hookResult;
-      }
-    } catch (err) {
-      kissLog("run res hook", err);
-      throw new Error(`Response hook error: ${err.message}`);
-    }
-  }
-
+  // Ignore legacy resHook scripts; only built-in protocol parsers may run.
   let modelMsg = "";
 
   // todo: 根据结果抛出实际异常信息

@@ -4,7 +4,7 @@
 
 Click the floating button on a regular webpage to keep the original text and append a translation below it. Click again to hide the translation. This edition focuses on English–Chinese reading, with online services and a separately prepared local Argos engine.
 
-Current version: **`2.0.32-learning.3`**.
+Current version: **`2.0.33-learning.4`**. This security update disables JavaScript hooks and the external userscript settings bridge, sanitizes settings exports/sync, and requires a local pairing token for Argos. See [security and migration notes](SECURITY.md).
 
 This is an independent learning fork of [KISS Translator by Gabe / fishjar and contributors](https://github.com/fishjar/kiss-translator), based on version 2.0.32. **It is not an official release from the upstream author.** Upstream attribution and the [GPL-3.0 license](LICENSE) are retained.
 

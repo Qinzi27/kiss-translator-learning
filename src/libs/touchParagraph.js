@@ -1,3 +1,4 @@
+import { isTrustedUserEvent } from "./trustedInteraction";
 import { supportsTouch } from "./touchCapability";
 // Gesture recognition is independent from translation and never emulates a mouse.
 export const touchParent = (node) =>
@@ -201,6 +202,7 @@ export class TouchParagraph {
       this.gesture = null;
     };
     listen(document, "pointerdown", (event) => {
+      if (!isTrustedUserEvent(event)) return;
       this.click = null;
       if (event.pointerType !== "touch") return;
       this.pointers.add(event.pointerId);
@@ -229,6 +231,7 @@ export class TouchParagraph {
       };
     });
     listen(document, "pointermove", (event) => {
+      if (!isTrustedUserEvent(event)) return;
       const g = this.gesture;
       if (!g || event.pointerId !== g.id) return;
       const dx = event.clientX - g.x,
@@ -240,6 +243,7 @@ export class TouchParagraph {
         cancel();
     });
     listen(document, "pointerup", (event) => {
+      if (!isTrustedUserEvent(event)) return;
       this.pointers.delete(event.pointerId);
       const g = this.gesture;
       if (!g || event.pointerId !== g.id) return;

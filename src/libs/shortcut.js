@@ -1,4 +1,5 @@
 import { isSameSet } from "./utils";
+import { isTrustedUserEvent } from "./trustedInteraction";
 
 /**
  * 键盘快捷键状态监听器。
@@ -16,6 +17,7 @@ export const shortcutListener = (
   const pressedKeys = new Set(); // 用于缓存当前所有正被按下的按键 (e.code)
 
   const handleKeyDown = (e) => {
+    if (!isTrustedUserEvent(e)) return;
     // 忽略没有物理按键 code 的异常事件
     if (!e.code) {
       return;
@@ -28,6 +30,7 @@ export const shortcutListener = (
   };
 
   const handleKeyUp = (e) => {
+    if (!isTrustedUserEvent(e)) return;
     if (!e.code) {
       return;
     }

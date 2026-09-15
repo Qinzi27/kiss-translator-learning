@@ -1,0 +1,54 @@
+{
+  "version": "2.0.33-learning.4",
+  "checkedAt": "2026-09-15T05:46:36.325009+00:00",
+  "npmAudit": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 205,
+    "devDependencies": 1275,
+    "optionalDependencies": 2,
+    "totalDependencies": 1480
+  },
+  "pnpmLockSha256": "1ee3befbd5c5c3dbe0646fe69f0996cb00d73401d73160eca5f47c00b54e97fb",
+  "javascriptTests": {
+    "suites": 154,
+    "passed": 2354,
+    "failed": 0
+  },
+  "pythonOfflineTests": {
+    "passed": 29,
+    "failed": 0,
+    "models": "mocked"
+  },
+  "browserPreview": {
+    "normalPageStatus": 200,
+    "foreignHostStatus": 403,
+    "foreignOriginStatus": 403,
+    "crossSiteRequestStatus": 403,
+    "realButtonExpandCollapse": "passed",
+    "extensionInstalled": "not tested",
+    "freshCloudRequest": "not established; cached translations may be used"
+  },
+  "secretPatternScan": {
+    "textFiles": 509,
+    "matches": 0,
+    "scope": "tracked and nonignored new text files before adding this receipt"
+  },
+  "limitations": [
+    "npm dependency audit does not audit the operating system, Node executable, or Python environment.",
+    "Pattern scans cannot prove the absence of every secret.",
+    "No real paid AI keys or authenticated WebAI sessions were tested."
+  ],
+  "postFullSuiteRegression": {
+    "module": "translatorManager",
+    "reason": "MV3 worker sender without URL compatibility",
+    "passed": 53,
+    "failed": 0,
+    "overlapsFullSuite": true
+  }
+}

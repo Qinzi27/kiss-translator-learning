@@ -2,7 +2,8 @@ import { useEffect, useCallback } from "react";
 import { isGm } from "../libs/client";
 import { kissLog } from "../libs/log";
 import { useLangMap } from "./I18n";
-import { MSG_OPEN_TRANBOX, EVENT_KISS_INNER } from "../config";
+import { MSG_OPEN_TRANBOX } from "../config";
+import { subscribeInternalMessage } from "../libs/internalEvents";
 
 export default function useTranboxShortcuts({
   showBox,
@@ -23,11 +24,11 @@ export default function useTranboxShortcuts({
     }
   }, [showBox, handleToggleTranbox, setShowBox]);
 
-  // 副作用：监听自定义打开翻译面板的 DOM 通信事件（浏览器扩展快捷键触发时会广播此内部消息）
+  // Trusted extension/menu actions arrive through a module-private bus, never DOM.
   useEffect(() => {
-    const handleStatusUpdate = (event) => {
-      if (event.detail?.action === MSG_OPEN_TRANBOX) {
-        const text = event.detail?.args?.text?.trim();
+    const handleStatusUpdate = (message) => {
+      if (message?.action === MSG_OPEN_TRANBOX) {
+        const text = message?.args?.text?.trim();
         if (text) {
           handleOpenTranbox?.(text);
           return;
@@ -36,10 +37,7 @@ export default function useTranboxShortcuts({
       }
     };
 
-    document.addEventListener(EVENT_KISS_INNER, handleStatusUpdate);
-    return () => {
-      document.removeEventListener(EVENT_KISS_INNER, handleStatusUpdate);
-    };
+    return subscribeInternalMessage(handleStatusUpdate);
   }, [handleToggle, handleOpenTranbox]);
 
   // 副作用：注册油猴脚本专用的右键菜单/脚本管理器菜单，供用户点击菜单拉起划词翻译框

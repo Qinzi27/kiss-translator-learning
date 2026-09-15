@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { sleep, limitNumber } from "../libs/utils";
 import { isMobile } from "../libs/mobile";
+import { isTrustedUserEvent } from "../libs/trustedInteraction";
 import {
   detectLangFast,
   isPureNumberText,
@@ -442,6 +443,7 @@ export default function useSelectionController({
 
   const handleSelectionEvent = useCallback(
     async (e) => {
+      if (!isTrustedUserEvent(e)) return;
       if (e.button === 2) return;
       if (isTranButtonEvent(e)) return;
 
@@ -574,6 +576,7 @@ export default function useSelectionController({
         : "mouseup";
 
     function handleInteract(e) {
+      if (!isTrustedUserEvent(e)) return;
       if (!isTranboxEvent(e)) return;
       const target = getOriginalEventTarget(e);
       const selectionRoot = getSelectionRootFromEvent(e);

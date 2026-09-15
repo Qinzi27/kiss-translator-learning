@@ -1,8 +1,9 @@
+import { emitInternalMessage } from "../../libs/internalEvents";
 /* eslint-disable testing-library/no-container, testing-library/no-unnecessary-act */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import Action from "./index";
-import { EVENT_KISS_INNER, MSG_POPUP_TOGGLE } from "../../config";
+import { MSG_POPUP_TOGGLE } from "../../config";
 import { mountShadowHost } from "../../libs/shadowHost";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -322,11 +323,7 @@ describe("content action Popup integration", () => {
     expect(shadowRoot.activeElement).toBe(panel);
 
     act(() => {
-      document.dispatchEvent(
-        new CustomEvent(EVENT_KISS_INNER, {
-          detail: { action: MSG_POPUP_TOGGLE },
-        })
-      );
+      emitInternalMessage({ action: MSG_POPUP_TOGGLE });
     });
 
     expect(container.querySelector('[role="dialog"]')).toBeNull();
@@ -408,11 +405,7 @@ describe("content action Popup integration", () => {
     expect(document.activeElement).toBe(outsideInput);
 
     act(() => {
-      document.dispatchEvent(
-        new CustomEvent(EVENT_KISS_INNER, {
-          detail: { action: MSG_POPUP_TOGGLE },
-        })
-      );
+      emitInternalMessage({ action: MSG_POPUP_TOGGLE });
     });
     const reopenedPanel = container.querySelector('[role="dialog"]');
     focusPanel();

@@ -50,6 +50,7 @@ import UploadButton from "./UploadButton";
 import DownloadButton from "./DownloadButton";
 import ValidationInput from "../../hooks/ValidationInput";
 import OverviewHero from "./OverviewHero";
+import { createSettingsExport, mergeSyncedSettings, SAFE_SETTINGS_EXPORT, SETTINGS_SHARING_NOTICE } from "../../libs/sanitizeSettings";
 import {
   NETWORK_POLICIES,
   NETWORK_POLICY_NORMAL,
@@ -263,7 +264,10 @@ export default function Settings() {
   // 导入备份 JSON 配置文件
   const handleImport = async (data) => {
     try {
-      updateSetting(JSON.parse(data));
+      const imported = JSON.parse(data);
+      updateSetting(imported?.settingsExportFormat === SAFE_SETTINGS_EXPORT
+        ? mergeSyncedSettings(imported, setting)
+        : imported);
     } catch (err) {
       kissLog("import setting", err);
     }
@@ -319,11 +323,14 @@ export default function Settings() {
         >
           <UploadButton text={i18n("import")} handleImport={handleImport} />
           <DownloadButton
-            handleData={() => JSON.stringify(setting, null, 2)}
+            handleData={() => JSON.stringify(createSettingsExport(setting), null, 2)}
             text={i18n("export")}
             fileName={`kiss-setting_v2_${Date.now()}.json`}
           />
         </Stack>
+        <Typography variant="body2" color="text.secondary">
+          {SETTINGS_SHARING_NOTICE}
+        </Typography>
 
         {/* 基础参数网格配置区 */}
         <Box className="kt-overview-settings">

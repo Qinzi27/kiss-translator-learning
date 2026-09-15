@@ -4,7 +4,7 @@
 
 在普通网页上单击悬浮翻译按钮，**保留原文，在下方追加译文；再次单击收起**。主要面向中英阅读，支持在线翻译与准备模型后的本机离线翻译。
 
-当前版本：**`2.0.32-learning.3`**。
+当前版本：**`2.0.33-learning.4`**。此版本包含安全修复，建议旧版用户更新并阅读 [安全与升级说明](SECURITY.md)。
 
 这是基于 [Gabe / fishjar 及贡献者的 KISS Translator](https://github.com/fishjar/kiss-translator) 开发的独立学习分支，**不是原作者发布的官方版本**。基础版本为 2.0.32，保留上游作者信息与 [GPL-3.0 许可证](LICENSE)。
 
@@ -66,6 +66,8 @@ python3.12 -m venv .offline/venv
 ```sh
 .offline/venv/bin/python offline/server.py
 ```
+
+首次启动会生成本机配对令牌。将终端显示的令牌填入 Argos 服务的 **Key** 字段并保存，旧版空 Key 配置也需要补填。不要把令牌提交到仓库或发给别人。
 
 本机端点为 `http://127.0.0.1:8765/translate`。在「概览 → 联网策略」选择「仅本机离线」，将网页翻译服务设为「本机离线 · Argos」，刷新阅读页后使用。Windows 的虚拟环境 Python 路径为 `.offline\venv\Scripts\python.exe`；换电脑、模型准备和缺少预设的完整操作见 [Argos 使用说明](offline/README.md)，请求失败时参见[本机服务排错](docs/TROUBLESHOOTING.md#argos-本机服务)。
 
@@ -129,6 +131,7 @@ CI=true node_modules/.bin/react-app-rewired test --watchAll=false --runInBand --
 - [START-HERE.md](START-HERE.md)：安装、切换服务、离线准备与常见问题。
 - [AI-SERVICES.md](AI-SERVICES.md)：免 Key 试用、8 个 AI 预设、自定义 API、后台网页与计费边界。
 - [TRANSLATION-SKILL.md](TRANSLATION-SKILL.md)：固定翻译指令、偏好与限制。
+- [SECURITY.md](SECURITY.md)：安全修复、密钥处理、升级兼容性与报告方式。
 - [VALIDATION.md](VALIDATION.md)：测试证据、实际返回、验证边界及复现命令。
 - [offline/README.md](offline/README.md)：Argos 模型准备、本机服务与离线验证。
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)：安装、请求失败及常见故障排查。

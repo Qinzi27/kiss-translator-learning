@@ -5,12 +5,11 @@
  */
 
 import browser from "webextension-polyfill";
-import { isExt, isGm } from "./client";
+import { isExt } from "./client";
 import { isBg } from "./browser";
 import { PORT_STREAM_FETCH } from "../config";
 import { createSSEParser, createAsyncQueue } from "./stream";
 import {
-  NETWORK_POLICY_NORMAL,
   fetchUnderNetworkPolicy,
   resolveNetworkPolicy,
 } from "./networkPolicy";
@@ -33,7 +32,7 @@ import {
  * @param {AbortSignal} [init.signal] 外部取消信号。
  * @returns {AsyncGenerator<string>} 逐条产出 SSE data 字段。
  */
-async function* fetchStreamGM(
+export async function* fetchStreamGM(
   input,
   { method = "GET", headers, body, timeout, signal } = {}
 ) {
@@ -369,15 +368,6 @@ export async function* requestStream(input, init, opts = {}) {
     return;
   }
 
-  // Native fetch enforces redirect:error; GM redirect handling varies by manager.
-  if (isGm && (await resolveNetworkPolicy()) === NETWORK_POLICY_NORMAL) {
-    yield* fetchStreamGM(input, {
-      ...init,
-      timeout: opts.httpTimeout,
-      signal: opts.signal,
-    });
-    return;
-  }
-
+  // Fail closed on redirects in every mode, including userscript normal mode.
   yield* fetchStreamNative(input, init, opts);
 }

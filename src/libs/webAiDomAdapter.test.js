@@ -19,7 +19,7 @@ beforeEach(() => {
     .spyOn(HTMLElement.prototype, "getClientRects")
     .mockReturnValue([{ width: 10, height: 10 }]);
   document.body.innerHTML =
-    '<textarea></textarea><button data-testid="chat_input_send_button">发送</button>';
+    '<form><textarea></textarea><button type="button" data-testid="chat_input_send_button">发送</button></form>';
   delete globalThis.__KISS_WEB_AI_BRIDGE_REQUEST__;
 });
 afterEach(() => {
@@ -187,7 +187,7 @@ test("navigation or missing task state cannot cause another send", () => {
 test("Kimi reads only assistant messages and refuses marked user content", () => {
   window.location = new URL("https://www.kimi.com/");
   document.body.innerHTML =
-    '<textarea></textarea><button class="send-button">发送</button>';
+    '<form><textarea></textarea><button type="button" class="send-button">发送</button></form>';
   action("prepare", { providerId: "kimi" });
   action("submit", { providerId: "kimi" });
   document.body.insertAdjacentHTML(
@@ -198,4 +198,112 @@ test("Kimi reads only assistant messages and refuses marked user content", () =>
     state: "complete",
     translation: "你好",
   });
+});
+
+test.each(["detached", "hidden", "disabled", "readonly", "replaced with same prompt", "moved"])(
+  "refuses submit when the prepared editor is %s",
+  (change) => {
+    action("prepare");
+    const editor = document.querySelector("textarea");
+    const click = jest.spyOn(document.querySelector("button"), "click");
+    if (change === "detached") editor.remove();
+    if (change === "hidden") editor.hidden = true;
+    if (change === "disabled") editor.disabled = true;
+    if (change === "readonly") editor.readOnly = true;
+    if (change === "replaced with same prompt") {
+      const replacement = editor.cloneNode();
+      replacement.value = base.prompt;
+      editor.replaceWith(replacement);
+    }
+    if (change === "moved") {
+      document.body.insertAdjacentHTML("beforeend", "<form id='other'></form>");
+      document.querySelector("#other").append(editor);
+    }
+    expect(action("submit")).toMatchObject({ code: "WEB_AI_EDITOR_CHANGED" });
+    expect(click).not.toHaveBeenCalled();
+  }
+);
+
+test.each([base.prompt + "\nMy private draft", " " + base.prompt, base.instructionTag])(
+  "requires the entire prompt to match, not merely the instruction marker: %s",
+  (draft) => {
+    action("prepare");
+    document.querySelector("textarea").value = draft;
+    const click = jest.spyOn(document.querySelector("button"), "click");
+    expect(action("submit")).toMatchObject({ code: "WEB_AI_EDITOR_CHANGED" });
+    expect(click).not.toHaveBeenCalled();
+    expect(document.querySelector("textarea").value).toBe(draft);
+  }
+);
+
+test("does not fill or send when another visible editor contains a draft", () => {
+  document.body.insertAdjacentHTML("beforeend", "<form><textarea>Other draft</textarea><button>Send</button></form>");
+  const click = jest.spyOn(HTMLElement.prototype, "click");
+  expect(action("probe")).toMatchObject({ code: "WEB_AI_EDITOR_AMBIGUOUS" });
+  expect(action("prepare")).toMatchObject({ code: "WEB_AI_EDITOR_AMBIGUOUS" });
+  expect(document.querySelector("textarea").value).toBe("");
+  expect(click).not.toHaveBeenCalled();
+});
+
+test("a newly restored draft in a second editor prevents sending the first", () => {
+  action("prepare");
+  document.body.insertAdjacentHTML("beforeend", "<form><textarea>Restored draft</textarea><button>Send</button></form>");
+  const click = jest.spyOn(HTMLElement.prototype, "click");
+  expect(action("submit")).toMatchObject({ code: "WEB_AI_EDITOR_CHANGED" });
+  expect(click).not.toHaveBeenCalled();
+});
+
+test("a rerender during input never causes a replacement editor to be sent", () => {
+  document.querySelector("textarea").addEventListener("input", (event) => {
+    const next = document.createElement("textarea");
+    next.value = "Recovered private draft " + base.instructionTag;
+    event.target.replaceWith(next);
+  });
+  action("prepare");
+  const click = jest.spyOn(document.querySelector("button"), "click");
+  expect(action("submit")).toMatchObject({ code: "WEB_AI_EDITOR_CHANGED" });
+  expect(click).not.toHaveBeenCalled();
+});
+
+test("ignores document-wide send buttons belonging to a different context", () => {
+  document.body.insertAdjacentHTML("afterbegin", '<button data-testid="send-button">Send</button>');
+  const outside = jest.spyOn(document.body.firstElementChild, "click");
+  const inside = jest.spyOn(document.querySelector("form button"), "click");
+  action("prepare");
+  expect(action("submit")).toEqual({ state: "sent" });
+  expect(outside).not.toHaveBeenCalled();
+  expect(inside).toHaveBeenCalledTimes(1);
+});
+
+test("does not fall back to an outside send button when the local button disappears", () => {
+  action("prepare");
+  document.querySelector("form button").remove();
+  document.body.insertAdjacentHTML("beforeend", '<button data-testid="send-button">Send</button>');
+  const click = jest.spyOn(document.querySelector("button"), "click");
+  expect(action("submit")).toEqual({ state: "not-ready" });
+  expect(click).not.toHaveBeenCalled();
+});
+
+test("refuses an ambiguous pair of local send buttons", () => {
+  action("prepare");
+  document.querySelector("form").insertAdjacentHTML("beforeend", '<button type="button" aria-label="Send">Send</button>');
+  const click = jest.spyOn(HTMLElement.prototype, "click");
+  expect(action("submit")).toMatchObject({ code: "WEB_AI_SEND_AMBIGUOUS" });
+  expect(click).not.toHaveBeenCalled();
+});
+
+test("does not send a button explicitly associated with another form", () => {
+  action("prepare");
+  document.body.insertAdjacentHTML("beforeend", "<form id='other'></form>");
+  const button = document.querySelector("button");
+  button.setAttribute("form", "other");
+  const click = jest.spyOn(button, "click");
+  expect(action("submit")).toMatchObject({ code: "WEB_AI_SEND_AMBIGUOUS" });
+  expect(click).not.toHaveBeenCalled();
+});
+
+test("unknown document-wide input context fails before filling", () => {
+  document.body.innerHTML = '<textarea></textarea><button>Send</button>';
+  expect(action("prepare")).toMatchObject({ code: "WEB_AI_CONTEXT_UNKNOWN" });
+  expect(document.querySelector("textarea").value).toBe("");
 });

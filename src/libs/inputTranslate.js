@@ -14,6 +14,7 @@ import { stepShortcutRegister } from "./shortcut";
 import { apiTranslate } from "../apis";
 import { createLoadingSVG } from "./svg";
 import { logger } from "./log";
+import { isTrustedUserEvent } from "./trustedInteraction";
 
 // ==========================================
 // 核心工具函数：DOM 查找与状态判断
@@ -455,6 +456,7 @@ export class InputTranslator {
     });
 
     const handleTrigger = (e) => {
+      if (!isTrustedUserEvent(e)) return;
       e.preventDefault();
       e.stopPropagation();
       if (this.#activeInput) this.#activeInput.focus();

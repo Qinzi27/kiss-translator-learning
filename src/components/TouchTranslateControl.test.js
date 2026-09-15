@@ -1,3 +1,4 @@
+import { emitInternalMessage } from "../libs/internalEvents";
 jest.mock("../hooks/Setting", () => ({
   SettingProvider: ({ children }) => children,
 }));
@@ -8,17 +9,17 @@ jest.mock(
       children
 );
 jest.mock("../libs/msg", () => ({ sendTabMsg: jest.fn() }));
-import React from "react";
+import React, { act } from "react";
 import { createRoot } from "react-dom/client";
-import { act, Simulate } from "react-dom/test-utils";
+import { Simulate } from "react-dom/test-utils";
 import TouchTranslateControl, {
   TouchTranslateStatus,
 } from "./TouchTranslateControl";
 import {
-  EVENT_KISS_INNER,
   MSG_TOUCH_TRANSLATE_MODE_SET,
   MSG_TOUCH_TRANSLATE_STATE,
 } from "../config";
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockSave = jest.fn();
 jest.mock("../hooks/MouseHover", () => ({
@@ -87,18 +88,14 @@ describe("touch mode controls", () => {
   test("updates mounted controls from the page event without persisting runtime state", async () => {
     await render();
     act(() =>
-      document.dispatchEvent(
-        new CustomEvent(EVENT_KISS_INNER, {
-          detail: {
+      emitInternalMessage({
             action: MSG_TOUCH_TRANSLATE_STATE,
             touchTranslate: {
               mode: "tap",
               supported: true,
               direction: "right",
             },
-          },
-        })
-      )
+          })
     );
     expect(container.querySelector('[role="combobox"]').textContent).toBe(
       "touch_tap"

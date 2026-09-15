@@ -4,7 +4,7 @@
  * WebExtension content script 到 background 的代理，以及超时信号与外部取消信号的合并。
  */
 
-import { isExt, isGm } from "./client";
+import { isExt } from "./client";
 import { sendBgMsg } from "./msg";
 import { getSettingWithDefault } from "./storage";
 import { MSG_FETCH, DEFAULT_HTTP_TIMEOUT } from "../config";
@@ -12,7 +12,6 @@ import { isBg } from "./browser";
 import { kissLog } from "./log";
 import { parseResponse } from "./response";
 import {
-  NETWORK_POLICY_NORMAL,
   fetchUnderNetworkPolicy,
   resolveNetworkPolicy,
 } from "./networkPolicy";
@@ -180,57 +179,8 @@ export const fetchGM = async (
     });
   });
 
-const fetchKissGM = async (
-  input,
-  { method = "GET", headers, body, timeout, signal } = {}
-) =>
-  new Promise((resolve, reject) => {
-    let requestHandle = null;
-    let settled = false;
-
-    const finish = (fn, value) => {
-      if (settled) return;
-      settled = true;
-      signal?.removeEventListener?.("abort", abortBySignal);
-      fn(value);
-    };
-
-    const abortBySignal = () => {
-      requestHandle?.abort?.();
-      finish(
-        reject,
-        new DOMException("The operation was aborted.", "AbortError")
-      );
-    };
-
-    if (signal?.aborted) {
-      abortBySignal();
-      return;
-    }
-
-    signal?.addEventListener?.("abort", abortBySignal, { once: true });
-
-    requestHandle = window.KISS_GM.xmlHttpRequest({
-      method,
-      url: input,
-      headers,
-      data: body,
-      anonymous: true,
-      timeout,
-      onload: (responseEvent) =>
-        finish(resolve, createGMResponse(responseEvent)),
-      onerror: (error) => finish(reject, error),
-      onabort: () =>
-        finish(
-          reject,
-          new DOMException("The operation was aborted.", "AbortError")
-        ),
-      ontimeout: () => finish(reject, new Error("GM request timeout.")),
-    });
-  });
-
 /**
- * 执行底层普通请求，自动选择 GM 或 native fetch。
+ * 执行底层普通请求，统一使用能拒绝重定向的 native fetch。
  *
  * @param {string} input 请求 URL。
  * @param {Object} [init={}] Fetch 初始化参数。
@@ -251,21 +201,7 @@ export const fetchPatcher = async (input, init = {}, opts) => {
   ]);
   const requestInit = { ...init, signal };
 
-  // Restricted userscript modes use native fetch so redirects cannot escape the policy.
-  if (isGm && networkPolicy === NETWORK_POLICY_NORMAL) {
-    const gmInit = { ...requestInit, timeout };
-
-    const { body, headers, status, statusText } = window.KISS_GM
-      ? await fetchKissGM(input, gmInit)
-      : await fetchGM(input, gmInit);
-
-    return new Response(body, {
-      headers: new Headers(headers),
-      status,
-      statusText,
-    });
-  }
-
+  // GM redirect semantics vary by manager; never use it for built-in requests.
   return fetchUnderNetworkPolicy(input, requestInit, networkPolicy);
 };
 

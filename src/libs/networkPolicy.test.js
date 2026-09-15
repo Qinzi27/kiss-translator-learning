@@ -43,7 +43,7 @@ describe("outbound network policy", () => {
     "offline blocks remote or disguised destination %s before fetch",
     async (url) => {
       getSettingWithDefault.mockResolvedValue({ networkPolicy: "offline" });
-      await expect(policyFetch(url)).rejects.toThrow(/本机|HTTP/);
+      await expect(policyFetch(url)).rejects.toThrow(/本机|HTTP|用户名/);
       expect(global.fetch).not.toHaveBeenCalled();
     }
   );
@@ -80,13 +80,33 @@ describe("outbound network policy", () => {
     }
   );
 
-  test("normal mode preserves the upstream fetch options and redirect behavior", async () => {
+  test("normal mode keeps request data but rejects redirects to prevent HTTPS downgrades", async () => {
     const options = { redirect: "follow", method: "POST", body: "text" };
     await policyFetch("https://translate.googleapis.com/", options);
     expect(global.fetch).toHaveBeenCalledWith(
       "https://translate.googleapis.com/",
-      options
+      { ...options, redirect: "error" }
     );
+  });
+
+  test.each(["normal", "no-google", "offline"])("%s rejects remote HTTP even with credential headers", async (networkPolicy) => {
+    getSettingWithDefault.mockResolvedValue({ networkPolicy });
+    await expect(policyFetch("http://example.test/translate", {
+      headers: { "X-Api-Key": "SYNTHETIC" }, redirect: "follow",
+    })).rejects.toThrow("HTTPS");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test.each(["http://2130706433/", "http://127.1/", "http://localhost.evil.test/", "http://local%68ost/"])(
+    "normal mode also rejects ambiguous HTTP loopback notation %s", async (url) => {
+      await expect(policyFetch(url)).rejects.toThrow("HTTPS");
+      expect(global.fetch).not.toHaveBeenCalled();
+    }
+  );
+
+  test("normal mode permits literal loopback HTTP and still disables redirect following", async () => {
+    await policyFetch("http://127.0.0.1:8765/translate");
+    expect(global.fetch).toHaveBeenCalledWith("http://127.0.0.1:8765/translate", { redirect: "error" });
   });
 
   test("uses the latest stored policy on each request", async () => {

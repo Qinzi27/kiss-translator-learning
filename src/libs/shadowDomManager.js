@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 import { logger } from "./log";
+import { guardInjectedUi } from "./trustedInteraction";
 import {
   isolateShadowHost,
   mountShadowHost,
@@ -17,6 +18,7 @@ export default class ShadowDomManager {
   #cleanupHostMount = null;
   #cache = null;
   #renderProps = null;
+  #cleanupInteractionGuard = null;
 
   _id;
   _className;
@@ -87,6 +89,8 @@ export default class ShadowDomManager {
   }
 
   #unmount() {
+    this.#cleanupInteractionGuard?.();
+    this.#cleanupInteractionGuard = null;
     this.#cleanupHostMount?.();
     this.#cleanupHostMount = null;
     if (!this.#hostElement) {
@@ -131,6 +135,7 @@ export default class ShadowDomManager {
       onReconnect: () => this.#refreshStyles(),
     });
     const shadowContainer = host.attachShadow({ mode: "open" });
+    this.#cleanupInteractionGuard = guardInjectedUi(shadowContainer);
     const appRoot = document.createElement("div");
     appRoot.className = `${this._id}_wrapper notranslate`;
     shadowContainer.appendChild(appRoot);

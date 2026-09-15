@@ -31,6 +31,7 @@ import { createClient, getPatcher } from "webdav";
 import { fetchPatcher } from "./fetch";
 import { kissLog } from "./log";
 import { encryptSyncValue, decryptSyncValue } from "./syncCrypto";
+import { sanitizeSettings, mergeSyncedSettings } from "./sanitizeSettings";
 
 let webdavRequestPatched = false;
 const GIST_SYNC_DESCRIPTION = "kiss translator sync files";
@@ -69,7 +70,7 @@ const ensureWebdavRequestPatched = () => {
 const syncByWebdav = async (
   data,
   { syncUrl, syncUser, syncKey },
-  { forceWrite = false } = {}
+  { forceWrite = false, verifyRemote } = {}
 ) => {
   ensureWebdavRequestPatched();
 
@@ -90,6 +91,7 @@ const syncByWebdav = async (
   if (isExist && !forceWrite) {
     const cont = await client.getFileContents(filename, { format: "text" });
     const webData = JSON.parse(cont);
+    if (verifyRemote) await verifyRemote(webData);
 
     // REVIEW: 纯时间戳机制。若云端数据版本更新或与本地一致，则放弃本地上传，返回云端数据以更新本地
     if (webData.updateAt >= data.updateAt) {
@@ -148,7 +150,7 @@ const getGistFilename = (key) => {
 const syncByGist = async (
   data,
   { syncUrl, syncKey },
-  { forceWrite = false } = {}
+  { forceWrite = false, verifyRemote } = {}
 ) => {
   let gistId = getGistId(syncUrl);
   const filename = getGistFilename(data.key);
@@ -180,6 +182,7 @@ const syncByGist = async (
   if (file && !forceWrite) {
     const fileContent = file.content || (await apiFetchText(file.raw_url));
     const gistData = JSON.parse(fileContent);
+    if (verifyRemote) await verifyRemote(gistData);
     if (gistData.updateAt >= data.updateAt) {
       return gistData;
     }
@@ -197,7 +200,12 @@ const syncByGist = async (
  */
 const encryptSyncData = async (data, syncEncryptKey) => ({
   ...data,
-  value: await encryptSyncValue(data.value, syncEncryptKey),
+  value: await encryptSyncValue(
+    data.key === KV_SETTING_KEY
+      ? JSON.stringify(sanitizeSettings(JSON.parse(data.value)))
+      : data.value,
+    syncEncryptKey
+  ),
 });
 
 /**
@@ -211,6 +219,9 @@ const decryptSyncData = async (data, syncEncryptKey) => {
     data.value,
     syncEncryptKey
   );
+  if (encrypted !== true) {
+    throw new Error("云端同步数据未通过加密验证，已停止同步并保留本机配置。旧备份请核实后在本机导入。");
+  }
   return {
     data: {
       ...data,
@@ -231,14 +242,6 @@ const syncByType = async (syncType, data, args, options) =>
     : syncType === OPT_SYNCTYPE_GIST
       ? await syncByGist(data, args, options)
       : await syncByWorker(data, args);
-
-/**
- * 将已经读取成功的旧版明文远端数据，用当前同步加密口令回写成密文。
- */
-const migratePlainSyncData = async (syncType, data, args, syncEncryptKey) => {
-  const encryptedData = await encryptSyncData(data, syncEncryptKey);
-  await syncByType(syncType, encryptedData, args, { forceWrite: true });
-};
 
 /**
  * 修改同步加密口令时强制用指定口令回写某一类个人同步数据。
@@ -341,7 +344,7 @@ export const syncData = async (
 
   const data = {
     key,
-    value: JSON.stringify(value),
+    value: JSON.stringify(key === KV_SETTING_KEY ? sanitizeSettings(value) : value),
     // 修改口令时必须先读取远端密文，不能因为本地元数据较新而覆盖它。
     updateAt: forceRemoteRead ? 0 : updateAt,
   };
@@ -354,25 +357,31 @@ export const syncData = async (
   const encryptedData = await encryptSyncData(data, syncEncryptKey);
 
   // 根据同步类型执行不同的同步方法
-  const encryptedOrLegacyRes = await syncByType(syncType, encryptedData, args);
+  const encryptedRes = await syncByType(syncType, encryptedData, args, {
+    verifyRemote: (remote) => decryptSyncData(remote, syncEncryptKey),
+  });
 
-  if (!encryptedOrLegacyRes) {
+  if (!encryptedRes) {
     throw new Error("sync data got err", key);
   }
 
-  const { data: res, encrypted } = await decryptSyncData(
-    encryptedOrLegacyRes,
+  const { data: res } = await decryptSyncData(
+    encryptedRes,
     syncEncryptKey
   );
-  const newVal = JSON.parse(res.value);
+  if (res.key !== key || !Number.isFinite(res.updateAt) || res.updateAt < 0) {
+    throw new Error("云端同步记录与当前数据不匹配，已保留本机配置。");
+  }
+  let newVal = JSON.parse(res.value);
   // 首次同步时本地与远端时间戳可能同为 0；此时内容不同仍需应用远端数据。
   const isNew =
     res.updateAt > updateAt ||
     (isFirstSync && res.updateAt === updateAt && res.value !== data.value);
 
-  // 新版客户端首次遇到旧版明文远端数据时，读取后立即迁移为密文。
-  if (!encrypted && !forceRemoteRead) {
-    await migratePlainSyncData(syncType, res, args, syncEncryptKey);
+  if (key === KV_SETTING_KEY) {
+    // Keys and scripts stay on this device. Re-read after the request so a
+    // concurrent local credential edit is not overwritten by an older snapshot.
+    newVal = mergeSyncedSettings(newVal, (await getSettingWithDefault()) || value);
   }
 
   // 更新本地同步元数据，包含云端的最新修改时间及当前的同步操作时间

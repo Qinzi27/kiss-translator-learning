@@ -1,6 +1,6 @@
 # 一键双语学习版验证
 
-更新日期：2026-09-15（Australia/Sydney）。基础版本：KISS Translator 2.0.32，提交 `2656f564dde5b271a8d3fb31e951a8457e8df41c`；当前学习版 `2.0.32-learning.3`。
+更新日期：2026-09-15（Australia/Sydney）。基础版本：KISS Translator 2.0.32，提交 `2656f564dde5b271a8d3fb31e951a8457e8df41c`；当前学习版 `2.0.33-learning.4`。
 
 本文整理已有开发与测试记录，发布文档检查本身没有新增云 API 调用或模型推理。不同轮次的测试有重叠，**不能把下列数量相加作为独立用例总数**。当前发布按预发布处理，已安装 Chrome / Edge 扩展的最终兼容性、8 家真实 Key 和后台网页登录会话均不因构建成功而自动视为通过。
 
@@ -11,6 +11,28 @@
 | Argos 真实模型                 | macOS 独立进程拒绝网络后双向冷启动推理成功             | 不是整台浏览器/电脑的断网验收；其他系统未实测    |
 | 网页交互                       | 真实浏览器中的 Web 开发页追加、切换保留与收起          | Web 开发环境不等于安装后的扩展权限与后台消息环境 |
 | 8 家 AI API / 豆包与 Kimi 网页 | 配置、请求、解析和 DOM/队列测试                        | 未实调真实 Key，未完成真实登录会话验收           |
+
+## 学习版 4：安全修复验证
+
+本次完整 JavaScript 回归 **154 套、2354 项全部通过**；随后针对 MV3 无 URL 后台发送者的兼容补丁，manager 定向 **53 项通过**（与前面有重叠，不相加）；离线服务 **29 项 Python 合成测试通过**。Chrome 生产构建成功。两项旧测试分别把默认并发误写为串行、把现有英文词典提示误写为中文，已校正测试预期，未为此改动生产逻辑。
+
+- 防御回归覆盖公开页面消息拒绝、私有划词通信、伪造输入事件拒绝、脚本不执行、设置脱敏与凭据保留、加密同步拒绝明文、HTTPS/重定向策略、WebAI 输入框重绘及草稿保护、Argos 配对鉴权/Host/Origin/资源限制。
+- 官方 npm 审计：**全部 1480 个依赖记录中，已知漏洞 0**（运行、开发和可选依赖合计）。这是锁文件对应 npm 包的检查，不包含操作系统、Node 可执行文件或 Python 环境审计。摘要与锁文件校验见 [security-audit.json](validation/security-audit.json)。
+- 509 个待发布文本文件的常见 GitHub/AWS/私钥/长 API Key 格式扫描未命中。格式扫描不证明所有潜在秘密均不存在，发布包仍排除 `.offline`、模型、依赖和本机日志。
+- 真实浏览器 Web 预览中，点击悬浮按钮能追加双语，再点能收起；输入框和排除区保持原样。该验证可能使用已有缓存，不计为本次新的真实云 API 验证。
+- 新开发预览：正常回环页面 HTTP 200；伪造 Host、外站 Origin 与跨站脚本请求均 HTTP 403，未返回通配 CORS。
+- 本轮没有实调付费 AI、读取用户 API Key 或使用真实登录聊天会话。未完成安装后的 Chrome / Edge 权限与消息元数据实机验收。
+
+复现（无需模型或云端 Key）：
+
+```sh
+CI=true node_modules/.bin/react-app-rewired test --watchAll=false --runInBand
+python3 -m unittest discover -s offline -p 'test_*.py'
+pnpm audit --json
+pnpm build:chrome
+```
+
+升级时的行为变化及密钥迁移见 [SECURITY.md](SECURITY.md)。以下 learning.3 及更早记录是历史证据，不与本次测试数量相加。
 
 ## 2026-09-15 发布准备检查
 

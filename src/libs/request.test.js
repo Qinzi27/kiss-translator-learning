@@ -146,82 +146,22 @@ describe("fetchPatcher", () => {
     expect(capturedSignal.aborted).toBe(true);
   });
 
-  test("uses KISS_GM xmlHttpRequest bridge without passing signal", async () => {
-    const { fetchPatcher: gmFetchPatcher } = loadRequestWithClient({
-      isExt: false,
-      isGm: true,
-    });
-    const abort = jest.fn();
-    let requestDetails;
-    window.KISS_GM = {
-      fetch: jest.fn(),
-      xmlHttpRequest: jest.fn((details) => {
-        requestDetails = details;
-        return { abort };
-      }),
-    };
-    const controller = new AbortController();
-
-    const request = gmFetchPatcher(
-      "https://example.test/data",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: '{"ok":true}',
-      },
-      { signal: controller.signal }
-    );
-    await waitFor(() => window.KISS_GM.xmlHttpRequest.mock.calls.length === 1);
-
-    expect(window.KISS_GM.fetch).not.toHaveBeenCalled();
-    expect(window.KISS_GM.xmlHttpRequest).toHaveBeenCalledTimes(1);
-    expect(requestDetails).toMatchObject({
-      method: "POST",
-      url: "https://example.test/data",
-      headers: { "content-type": "application/json" },
-      data: '{"ok":true}',
-      anonymous: true,
-      timeout: 1000,
-    });
-    expect(requestDetails.signal).toBeUndefined();
-
-    requestDetails.onload({
-      response: '{"done":true}',
-      responseHeaders: "x-test: yes",
-      status: 201,
-      statusText: "Created",
-    });
-
-    const response = await request;
-    await expect(response.text()).resolves.toBe('{"done":true}');
-    expect(response.status).toBe(201);
-    expect(response.statusText).toBe("Created");
-    expect(response.headers.get("x-test")).toBe("yes");
+  test("normal userscript requests use native fetch with redirects disabled", async () => {
+    const { fetchPatcher: gmFetch } = loadRequestWithClient({ isExt: false, isGm: true });
+    window.KISS_GM = { fetch: jest.fn(), xmlHttpRequest: jest.fn() };
+    global.fetch = jest.fn().mockResolvedValue(new Response("{}"));
+    await gmFetch("https://example.test/data", { redirect: "follow" });
+    expect(global.fetch.mock.calls[0][1].redirect).toBe("error");
+    expect(window.KISS_GM.xmlHttpRequest).not.toHaveBeenCalled();
   });
 
-  test("aborts KISS_GM xmlHttpRequest when external signal aborts", async () => {
-    const { fetchPatcher: gmFetchPatcher } = loadRequestWithClient({
-      isExt: false,
-      isGm: true,
-    });
-    const abort = jest.fn();
-    window.KISS_GM = {
-      fetch: jest.fn(),
-      xmlHttpRequest: jest.fn(() => ({ abort })),
-    };
-    const controller = new AbortController();
-
-    const request = gmFetchPatcher(
-      "https://example.test/data",
-      {},
-      { signal: controller.signal }
-    );
-    await waitFor(() => window.KISS_GM.xmlHttpRequest.mock.calls.length === 1);
-    controller.abort();
-
-    await expect(request).rejects.toThrow("The operation was aborted.");
-    expect(abort).toHaveBeenCalledTimes(1);
-    expect(window.KISS_GM.fetch).not.toHaveBeenCalled();
+  test("normal userscript HTTP is rejected before either transport can send", async () => {
+    const { fetchPatcher: gmFetch } = loadRequestWithClient({ isExt: false, isGm: true });
+    window.KISS_GM = { xmlHttpRequest: jest.fn() };
+    global.fetch = jest.fn();
+    await expect(gmFetch("http://example.test/data")).rejects.toThrow("HTTPS");
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(window.KISS_GM.xmlHttpRequest).not.toHaveBeenCalled();
   });
 });
 

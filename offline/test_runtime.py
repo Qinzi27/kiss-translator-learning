@@ -9,6 +9,7 @@ import os
 import socket
 import unittest
 from email.message import Message
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import runtime
@@ -85,7 +86,11 @@ class ServerInputTests(unittest.TestCase):
         raw = json.dumps(payload).encode()
         handler = server.Handler.__new__(server.Handler)
         handler.path = "/translate"
+        handler.server = SimpleNamespace(pairing_token="t" * 43, server_address=("127.0.0.1", 8765))
+        handler.connection = Mock()
         handler.headers = Message()
+        handler.headers["Host"] = "127.0.0.1:8765"
+        handler.headers["Authorization"] = "Bearer " + "t" * 43
         handler.headers["Content-Type"] = "application/json"
         handler.headers["Content-Length"] = str(len(raw))
         handler.rfile = io.BytesIO(raw)

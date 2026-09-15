@@ -13,7 +13,6 @@ import { TransboxManager } from "./tranbox";
 import { shortcutRegister } from "./shortcut";
 import { sendIframeMsg } from "./iframe";
 import {
-  EVENT_KISS_INNER,
   EVENT_KISS_TRANSLATOR,
   MSG_HOVERNODE_TOGGLE,
   MSG_INPUT_TRANSLATE,
@@ -42,6 +41,45 @@ import {
   MSG_TRANSINPUT_TOGGLE,
 } from "../config";
 import { logger } from "./log";
+import { emitInternalMessage } from "./internalEvents";
+
+// DOM events and postMessage are controlled by the visited page, including
+// cross-origin parents. They must never configure services/hooks or upload text.
+function publicPageAction(message) {
+  if (!message || typeof message !== "object" || Array.isArray(message)) return;
+  const { action, args } = message;
+  if (action === MSG_TRANS_TOGGLE && args && typeof args === "object") {
+    if (
+      !Array.isArray(args) &&
+      Object.keys(args).length === 1 &&
+      Object.prototype.hasOwnProperty.call(args, "enabled") &&
+      args.enabled === false
+    ) {
+      return { action, args: { enabled: false } };
+    }
+  }
+}
+
+function isTrustedExtensionSender(sender) {
+  const runtimeId = browser?.runtime?.id;
+  if (!runtimeId || sender?.id !== runtimeId) return false;
+  try {
+    const root = new URL(browser.runtime.getURL("/"));
+    // Chrome's native MessageSender.url is optional for worker contexts. This
+    // fallback is only used on runtime.onMessage, never for page-provided data.
+    if (sender.url === undefined || sender.url === "") {
+      if (sender.tab !== undefined || sender.frameId !== undefined ||
+          sender.documentId !== undefined || sender.documentLifecycle !== undefined ||
+          sender.nativeApplication !== undefined) return false;
+      return sender.origin === undefined || sender.origin === "" ||
+        sender.origin === `${root.protocol}//${root.host}`;
+    }
+    const source = new URL(sender.url);
+    return source.protocol === root.protocol && source.host === root.host;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * 前台翻译业务的总生命周期管理器。
@@ -618,21 +656,25 @@ export default class TranslatorManager {
    * 处理同窗口 CustomEvent 通信。
    */
   #handleWindowMessage(event) {
-    logger.debug("handle window message:", event);
-    this.#processActions(event.detail);
+    const message = publicPageAction(event.detail);
+    if (message) this.#processActions(message);
   }
 
   /**
    * 处理 iframe 或页面内 postMessage 通信。
    */
   #handleInnerMessage(event) {
-    this.#processActions(event.data);
+    const expectedSource = this.#isIframe ? window.parent : window;
+    if (event.source !== expectedSource) return;
+    const message = publicPageAction(event.data);
+    if (message) this.#processActions(message);
   }
 
   /**
    * 处理扩展 background 发送的 runtime 消息。
    */
   #handleBrowserMessage(message, sender, sendResponse) {
+    if (!isTrustedExtensionSender(sender)) return false;
     const result = this.#processActions(message, true);
     const response = result || {
       rule: this._translator?.rule || this.#rule,
@@ -715,14 +757,10 @@ export default class TranslatorManager {
    * 已经是统一入口，不再二次广播，避免 iframe 收到重复指令。
    */
   #notifyTouchState() {
-    document.dispatchEvent(
-      new CustomEvent(EVENT_KISS_INNER, {
-        detail: {
-          action: MSG_TOUCH_TRANSLATE_STATE,
-          touchTranslate: this.#getTouchState(),
-        },
-      })
-    );
+    emitInternalMessage({
+      action: MSG_TOUCH_TRANSLATE_STATE,
+      touchTranslate: this.#getTouchState(),
+    });
   }
 
   #getTouchState() {
@@ -765,9 +803,11 @@ export default class TranslatorManager {
     if (this._ruleEditorManager?.session && action !== MSG_TRANS_GETRULE)
       return;
 
-    // 非 background 指令需要主动同步给子 iframe，保持多 frame 页面状态一致。
+    // Only public stop actions may cross the page-controlled DOM
+    // channel. Privileged commands use extension messaging, never postMessage.
     if (!fromExt) {
-      sendIframeMsg(action, args);
+      const publicMessage = publicPageAction({ action, args });
+      if (publicMessage) sendIframeMsg(publicMessage.action, publicMessage.args);
     }
 
     logger.debug("process action:", action, args);
@@ -794,11 +834,7 @@ export default class TranslatorManager {
         this._translator?.updateRule(args);
         break;
       case MSG_OPEN_TRANBOX:
-        document.dispatchEvent(
-          new CustomEvent(EVENT_KISS_INNER, {
-            detail: { action: MSG_OPEN_TRANBOX, args },
-          })
-        );
+        emitInternalMessage({ action: MSG_OPEN_TRANBOX, args });
         break;
       case MSG_POPUP_TOGGLE:
         this._popupManager?.toggle();
@@ -819,11 +855,7 @@ export default class TranslatorManager {
           this._translator?.toggleTransbox();
         }
         // Notify mounted page controls after the runtime toggle has completed.
-        document.dispatchEvent(
-          new CustomEvent(EVENT_KISS_INNER, {
-            detail: { action: MSG_TRANSBOX_TOGGLE },
-          })
-        );
+        emitInternalMessage({ action: MSG_TRANSBOX_TOGGLE });
         break;
       case MSG_MOUSEHOVER_TOGGLE:
         if (

@@ -60,14 +60,17 @@ describe("sync crypto", () => {
     expect(first).not.toBe(second);
   });
 
-  test("keeps legacy plaintext JSON even when business data has encrypted flag", async () => {
-    const legacyValue = JSON.stringify({ encrypted: true, userValue: "plain" });
+  test.each([JSON.stringify({ uiLang: "zh" }), JSON.stringify({ encrypted: true, userValue: "plain" }), "invalid"])(
+    "rejects unauthenticated legacy or malformed remote data: %s", async (value) => {
+      await expect(decryptSyncValue(value, "sync-key")).rejects.toThrow("保留本机配置");
+    }
+  );
 
-    const result = await decryptSyncValue(legacyValue, "sync-key");
-
-    expect(result).toEqual({
-      value: legacyValue,
-      encrypted: false,
-    });
+  test("rejects a modified authenticated ciphertext", async () => {
+    const encrypted = JSON.parse(await encryptSyncValue('{"uiLang":"zh"}', "sync-key"));
+    const bytes = Buffer.from(encrypted.data, "base64");
+    bytes[0] ^= 1;
+    encrypted.data = bytes.toString("base64");
+    await expect(decryptSyncValue(JSON.stringify(encrypted), "sync-key")).rejects.toThrow();
   });
 });

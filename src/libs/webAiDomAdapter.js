@@ -41,6 +41,28 @@ export function webAiDomAdapter(options) {
   const all = (selector) =>
     Array.from(document.querySelectorAll(selector)).filter(visible);
   const textOf = (node) => (node?.innerText || node?.textContent || "").trim();
+  const editorSelector =
+    'textarea,[contenteditable="true"][role="textbox"],[contenteditable="true"].ProseMirror,[contenteditable="true"][data-lexical-editor="true"]';
+  const editorsNow = () =>
+    all(editorSelector).filter(
+      (node) =>
+        !node.disabled &&
+        !node.readOnly &&
+        node.getAttribute("aria-disabled") !== "true" &&
+        node.getAttribute("aria-readonly") !== "true"
+    );
+  // Do not guess a send button from a document-wide ancestor. An unsupported
+  // composer must fail closed until its explicit input context is identified.
+  const inputContext = (editor) =>
+    editor.closest(
+      'form,[role="form"],[data-testid="chat_input"],[data-testid="chat-input"],[data-testid="chat_input_container"],.chat-input,.chat-input-container,.chat-editor'
+    );
+  const editorText = (editor) =>
+    editor.tagName === "TEXTAREA"
+      ? editor.value
+      : editor.innerText ?? editor.textContent ?? "";
+  const ambiguousEditor = () =>
+    fail("WEB_AI_EDITOR_AMBIGUOUS", "AI 网页有多个输入框，已停止操作，请手动检查后台标签。");
   const blocked = () => {
     const captcha = all(
       'iframe[src*="captcha"],iframe[src*="recaptcha"],[class*="captcha"][role="dialog"],[data-testid*="captcha"]'
@@ -78,12 +100,9 @@ export function webAiDomAdapter(options) {
   const restriction = blocked();
   if (restriction) return restriction;
   if (action === "probe") {
-    const editors = all(
-      'textarea,[contenteditable="true"][role="textbox"],[contenteditable="true"].ProseMirror,[contenteditable="true"][data-lexical-editor="true"]'
-    );
-    const editor = editors.find(
-      (node) => !node.disabled && node.getAttribute("aria-disabled") !== "true"
-    );
+    const editors = editorsNow();
+    if (editors.length > 1) return ambiguousEditor();
+    const editor = editors[0];
     if (!editor) {
       const login = all('button,[role="button"]').some((node) =>
         /^(登录|登陆|登录体验|立即登录|Sign in|Log in)$/i.test(textOf(node))
@@ -102,13 +121,14 @@ export function webAiDomAdapter(options) {
       return state.requestId === requestId
         ? { state: state.sent ? "sent" : "prepared" }
         : fail("WEB_AI_REQUEST_CONFLICT", "后台标签已有另一项翻译，请重试。");
-    const editor = all(
-      'textarea,[contenteditable="true"][role="textbox"],[contenteditable="true"].ProseMirror,[contenteditable="true"][data-lexical-editor="true"]'
-    ).find(
-      (node) => !node.disabled && node.getAttribute("aria-disabled") !== "true"
-    );
+    const editors = editorsNow();
+    if (editors.length > 1) return ambiguousEditor();
+    const editor = editors[0];
     if (!editor) return { state: "loading" };
-    if ((editor.value || textOf(editor)).trim()) {
+    const context = inputContext(editor);
+    if (!context || context === document.body || context === document.documentElement)
+      return fail("WEB_AI_CONTEXT_UNKNOWN", "无法明确识别 AI 输入区域，已停止操作。");
+    if (editorText(editor).trim()) {
       return fail(
         "WEB_AI_DRAFT_PRESENT",
         "AI 网页恢复了未发送草稿，已停止填入。请打开后台标签处理草稿后重试。"
@@ -121,6 +141,7 @@ export function webAiDomAdapter(options) {
       instructionTag,
       prompt,
       editor,
+      context,
       sent: false,
     };
     globalThis[key] = state;
@@ -157,8 +178,15 @@ export function webAiDomAdapter(options) {
   }
   if (action === "submit") {
     if (state.sent) return { state: "sent" };
-    const current = state.editor.value || textOf(state.editor);
-    if (!current.includes(state.instructionTag))
+    const editors = editorsNow();
+    if (
+      editors.length !== 1 ||
+      editors[0] !== state.editor ||
+      !state.editor.isConnected ||
+      !state.context?.isConnected ||
+      inputContext(state.editor) !== state.context ||
+      editorText(state.editor) !== state.prompt
+    )
       return fail(
         "WEB_AI_EDITOR_CHANGED",
         "AI 输入框内容发生变化，已停止发送。"
@@ -167,8 +195,10 @@ export function webAiDomAdapter(options) {
       providerId === "doubao"
         ? '[data-testid="chat_input_send_button"],[data-testid="send_button"],[data-testid="send-button"]'
         : '.send-button,[data-testid="send-button"],[data-testid="send_button"]';
-    const candidates = all(selectors).concat(
-      all('button,[role="button"]').filter((node) =>
+    const inContext = (selector) =>
+      Array.from(state.context.querySelectorAll(selector)).filter(visible);
+    const candidates = inContext(selectors).concat(
+      inContext('button,[role="button"]').filter((node) =>
         /^(发送|发送消息|Send|Send message)$/i.test(
           node.getAttribute("aria-label") ||
             node.getAttribute("title") ||
@@ -176,14 +206,24 @@ export function webAiDomAdapter(options) {
         )
       )
     );
-    const button = candidates.find(
-      (node) =>
-        !node.disabled &&
-        node.getAttribute("aria-disabled") !== "true" &&
-        !node.classList.contains("disabled") &&
-        getComputedStyle(node).pointerEvents !== "none"
+    const unique = candidates.filter(
+      (node, index) => candidates.indexOf(node) === index
     );
+    if (unique.length > 1)
+      return fail("WEB_AI_SEND_AMBIGUOUS", "AI 输入区域有多个发送按钮，已停止发送。");
+    const button = unique[0];
     if (!button) return { state: "not-ready" };
+    if (
+      inputContext(button) !== state.context ||
+      (button.form && button.form !== state.editor.closest("form"))
+    )
+      return fail("WEB_AI_SEND_AMBIGUOUS", "发送按钮不属于当前输入区域，已停止发送。");
+    if (
+      button.disabled ||
+      button.getAttribute("aria-disabled") === "true" ||
+      button.classList.contains("disabled") ||
+      getComputedStyle(button).pointerEvents === "none"
+    ) return { state: "not-ready" };
     // Set before click: an exception or late response must never trigger a retry.
     state.sent = true;
     button.click();

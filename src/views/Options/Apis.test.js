@@ -5,6 +5,7 @@ import Apis from "./Apis";
 import {
   DEFAULT_API_LIST,
   OPT_TRANS_BUILTINAI,
+  OPT_TRANS_CUSTOMIZE,
   GEMINI_INTERACTIONS_URL,
   OPT_TRANS_OPENAI,
   OPT_TRANS_OPENROUTER,
@@ -276,6 +277,28 @@ describe("Apis ordering and master-detail layout", () => {
     jest.clearAllMocks();
     document.body.innerHTML = "";
   });
+
+  test.each([OPT_TRANS_CUSTOMIZE, OPT_TRANS_OPENAI])(
+    "%s Hook editors disclose that scripts are stored but never executed",
+    async (apiType) => {
+      const reqHook = '() => { throw new Error("synthetic legacy script"); }';
+      const resHook = '() => [["synthetic legacy response"]]';
+      const view = await renderApis(createApi({ apiType, reqHook, resHook }));
+      if (apiType !== OPT_TRANS_CUSTOMIZE) {
+        const more = Array.from(view.container.querySelectorAll("button")).find(
+          (button) => button.textContent === "more"
+        );
+        await act(async () => Simulate.click(more));
+      }
+      expect(view.container.textContent.match(/安全版仅保存、不执行/g)).toHaveLength(2);
+      // Saving another ordinary field keeps the inert legacy text for recovery.
+      await editUrlDraft(view.container);
+      await act(async () => Simulate.click(getSaveButton(view.container)));
+      expect(view.update).toHaveBeenCalledWith(expect.objectContaining({ reqHook, resHook }));
+      expect(apiTranslate).not.toHaveBeenCalled();
+      view.unmount();
+    }
+  );
 
   test("offers explicit A-Z and Z-A actions and starts with A-Z", async () => {
     const view = await renderApis([

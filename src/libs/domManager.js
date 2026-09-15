@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 import { logger } from "./log";
+import { guardInjectedUi } from "./trustedInteraction";
 
 /**
  * 普通 DOM 管理器，用于管理 React 组件的挂载、更新和销毁
@@ -14,6 +15,7 @@ export default class DomManager {
   #reactRoot = null;
   #isVisible = false;
   #isProcessing = false;
+  #cleanupInteractionGuard = null;
 
   _id;
   _className;
@@ -83,6 +85,8 @@ export default class DomManager {
    * 销毁组件并移除 DOM 节点
    */
   destroy() {
+    this.#cleanupInteractionGuard?.();
+    this.#cleanupInteractionGuard = null;
     if (!this.#hostElement) {
       return;
     }
@@ -151,6 +155,7 @@ export default class DomManager {
 
     this._rootElement.appendChild(host);
     this.#hostElement = host;
+    this.#cleanupInteractionGuard = guardInjectedUi(host);
 
     const cache = createCache({
       key: this._id,

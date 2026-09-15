@@ -1,5 +1,7 @@
 # 自定义接口说明及示例
 
+> **安全版说明（learning.4 起）：** Request / Response Hook 仅保留文本，不执行。下文涉及 JavaScript Hook 的示例是上游历史参考，不能直接用于本版；默认 JSON 协议、Custom 内置解析和 Argos 仍受支持。
+
 ## 默认接口规范
 
 如果接口的请求数据和返回数据符合以下规范，

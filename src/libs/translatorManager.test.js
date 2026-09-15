@@ -53,6 +53,8 @@ jest.mock("../config", () => ({
 jest.mock("./browser", () => ({
   browser: {
     runtime: {
+      id: "test-extension",
+      getURL: (path) => `chrome-extension://test-extension${path}`,
       onMessage: {
         addListener: jest.fn(),
         removeListener: jest.fn(),
@@ -177,6 +179,11 @@ const { InputTranslator } = require("./inputTranslate");
 const { PopupManager } = require("./popupManager");
 const { FabManager } = require("./fabManager");
 const TranslatorManager = require("./translatorManager").default;
+const { subscribeInternalMessage } = require("./internalEvents");
+const trustedSender = {
+  id: "test-extension",
+  url: "chrome-extension://test-extension/background.js",
+};
 
 function setupMockConstructors() {
   Translator.mockImplementation((args) => {
@@ -264,6 +271,7 @@ function createManager({
   rule = { transOpen: "true" },
   setting = {},
   isUserscript = false,
+  isIframe = false,
   transboxOnly = false,
 } = {}) {
   const manager = new TranslatorManager({
@@ -279,7 +287,7 @@ function createManager({
     rule,
     fabConfig: { isHide: false },
     favWords: [],
-    isIframe: false,
+    isIframe,
     isUserscript,
     transboxOnly,
   });
@@ -300,7 +308,7 @@ async function flushMutationObserver() {
 function sendRuntimeMessage(message) {
   const runtimeHandler = browser.runtime.onMessage.addListener.mock.calls[0][0];
   const sendResponse = jest.fn();
-  runtimeHandler(message, {}, sendResponse);
+  runtimeHandler(message, trustedSender, sendResponse);
   expect(sendResponse).toHaveBeenCalledTimes(1);
   return sendResponse.mock.calls[0][0];
 }
@@ -327,6 +335,109 @@ describe("TranslatorManager SPA lifecycle", () => {
     activeManagers.length = 0;
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
+  });
+
+  test.each([
+    { action: "trans-putrule", args: { injectJs: "synthetic", apiSlug: "other" } },
+    { action: "trans-putrule", args: { transStartHook: "synthetic" } },
+    { action: "trans-toggle", args: { enabled: true } },
+    { action: "trans-toggle" },
+    { action: "trans-toggle-only" },
+    { action: "trans-toggle-style" },
+    { action: "input-translate" },
+    { action: "open-tranbox", args: { text: "page-controlled text" } },
+    { action: "trans-toggle", args: { enabled: false, injectJs: "synthetic" } },
+  ])("rejects page-controlled CustomEvent action $action", (message) => {
+    const manager = createManager();
+    manager.start();
+    window.dispatchEvent(new CustomEvent("kiss-translator", { detail: message }));
+    const translator = mockTranslatorInstances[0];
+    for (const method of ["updateRule", "toggle", "enable", "disable", "toggleStyle", "toggleTransOnly"]) {
+      expect(translator[method]).not.toHaveBeenCalled();
+    }
+    expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
+    expect(mockInputTranslatorInstances[0].handleTranslate).not.toHaveBeenCalled();
+  });
+
+  test("only accepts explicit stop from the public event and strips its envelope", () => {
+    createManager().start();
+    window.dispatchEvent(new CustomEvent("kiss-translator", {
+      detail: { action: "trans-toggle", args: { enabled: false }, fromExt: true },
+    }));
+    expect(mockTranslatorInstances[0].disable).toHaveBeenCalledTimes(1);
+    expect(require("./iframe").sendIframeMsg).toHaveBeenCalledWith(
+      "trans-toggle", { enabled: false }
+    );
+  });
+
+  test.each([false, true])("postMessage cannot elevate rule changes (userscript: %s)", (isUserscript) => {
+    createManager({ isIframe: true, isUserscript }).start();
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window.parent,
+      origin: "https://untrusted.example",
+      data: { action: "trans-putrule", args: { injectJs: "synthetic" }, fromExt: true },
+    }));
+    expect(mockTranslatorInstances[0].updateRule).not.toHaveBeenCalled();
+    expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    {},
+    { id: "another-extension", url: trustedSender.url },
+    { id: "test-extension", url: "https://untrusted.example" },
+    { id: "test-extension", url: "chrome-extension://another-extension/options.html" },
+    { id: "test-extension", url: "not-a-url" },
+    { id: "test-extension", tab: { id: 1 } },
+    { id: "test-extension", frameId: 0 },
+    { id: "test-extension", frameId: -1 },
+    { id: "test-extension", documentId: "document-fixture" },
+    { id: "test-extension", documentLifecycle: "active" },
+    { id: "test-extension", origin: "https://untrusted.example" },
+    { id: "test-extension", origin: "null" },
+    { id: "test-extension", origin: "chrome-extension://another-extension" },
+  ])("rejects an untrusted runtime sender without returning settings", (sender) => {
+    createManager().start();
+    const handler = browser.runtime.onMessage.addListener.mock.calls[0][0];
+    const respond = jest.fn();
+    expect(handler({ action: "trans-putrule", args: { apiSlug: "other" } }, sender, respond)).toBe(false);
+    expect(mockTranslatorInstances[0].updateRule).not.toHaveBeenCalled();
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    { id: "test-extension" },
+    { id: "test-extension", url: "", origin: "" },
+    { id: "test-extension", origin: "chrome-extension://test-extension" },
+  ])("accepts a native worker sender without a document URL: %j", (sender) => {
+    createManager().start();
+    const handler = browser.runtime.onMessage.addListener.mock.calls[0][0];
+    const respond = jest.fn();
+    expect(handler({ action: "trans-toggle" }, sender, respond)).toBe(true);
+    expect(mockTranslatorInstances[0].toggle).toHaveBeenCalledTimes(1);
+    expect(respond).toHaveBeenCalledTimes(1);
+    expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
+  });
+
+  test("worker metadata in message data cannot impersonate the native runtime sender", () => {
+    createManager().start();
+    const handler = browser.runtime.onMessage.addListener.mock.calls[0][0];
+    const respond = jest.fn();
+    const message = { action: "trans-toggle", sender: { id: "test-extension" }, fromExt: true };
+    expect(handler(message, {}, respond)).toBe(false);
+    window.dispatchEvent(new CustomEvent("kiss-translator", { detail: message }));
+    expect(mockTranslatorInstances[0].toggle).not.toHaveBeenCalled();
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  test("preserves trusted extension and internal editor rule changes without DOM forwarding", () => {
+    createManager().start();
+    const rule = { apiSlug: "saved-service", transStartHook: "({text}) => ({text})" };
+    sendRuntimeMessage({ action: "trans-putrule", args: rule });
+    const processActions = PopupManager.mock.calls[0][0].processActions;
+    processActions({ action: "trans-putrule", args: rule });
+    expect(mockTranslatorInstances[0].updateRule).toHaveBeenCalledTimes(2);
+    expect(mockTranslatorInstances[0].updateRule).toHaveBeenLastCalledWith(rule);
+    expect(require("./iframe").sendIframeMsg).not.toHaveBeenCalled();
   });
 
   test("restarts runtime modules when body is replaced", async () => {
@@ -365,7 +476,7 @@ describe("TranslatorManager SPA lifecycle", () => {
     const respond = jest.fn();
     browser.runtime.onMessage.addListener.mock.calls.at(-1)[0](
       { action: "touch-state" },
-      {},
+      trustedSender,
       respond
     );
     expect(respond.mock.calls[0][0].touchTranslate.mode).toBe("off");
@@ -479,28 +590,32 @@ describe("TranslatorManager SPA lifecycle", () => {
     expect(browser.runtime.onMessage.addListener).toHaveBeenCalledTimes(1);
   });
 
-  test("passes open-tranbox args through the inner event", () => {
+  test.each(["background.js", "popup.html", "options.html"])("trusted %s can open selection translation through the private bus", (senderPage) => {
     const manager = createManager({ transboxOnly: true });
     const eventHandler = jest.fn();
     manager.start();
-    document.addEventListener("kiss-inner", eventHandler);
+    const unsubscribe = subscribeInternalMessage(eventHandler);
+    const pageListener = jest.fn();
+    document.addEventListener("kiss-inner", pageListener);
 
     const runtimeHandler =
       browser.runtime.onMessage.addListener.mock.calls[0][0];
     const sendResponse = jest.fn();
     runtimeHandler(
       { action: "open-tranbox", args: { text: "hello" } },
-      {},
+      { ...trustedSender, url: `chrome-extension://test-extension/${senderPage}` },
       sendResponse
     );
 
     expect(eventHandler).toHaveBeenCalledTimes(1);
-    expect(eventHandler.mock.calls[0][0].detail).toEqual({
+    expect(eventHandler.mock.calls[0][0]).toEqual({
       action: "open-tranbox",
       args: { text: "hello" },
     });
 
-    document.removeEventListener("kiss-inner", eventHandler);
+    expect(pageListener).not.toHaveBeenCalled();
+    unsubscribe();
+    document.removeEventListener("kiss-inner", pageListener);
   });
 
   test.each([true, false])(
@@ -602,12 +717,12 @@ describe("TranslatorManager SPA lifecycle", () => {
       browser.runtime.onMessage.addListener.mock.calls[0][0];
     runtimeHandler(
       { action: "trans-toggle", args: { enabled: false } },
-      {},
+      trustedSender,
       jest.fn()
     );
     runtimeHandler(
       { action: "trans-toggle", args: { enabled: true } },
-      {},
+      trustedSender,
       jest.fn()
     );
 
@@ -622,7 +737,7 @@ describe("TranslatorManager SPA lifecycle", () => {
 
     const runtimeHandler =
       browser.runtime.onMessage.addListener.mock.calls[0][0];
-    runtimeHandler({ action: "trans-toggle" }, {}, jest.fn());
+    runtimeHandler({ action: "trans-toggle" }, trustedSender, jest.fn());
 
     expect(mockTranslatorInstances[0].toggle).toHaveBeenCalledTimes(1);
     expect(mockTranslatorInstances[0].enable).not.toHaveBeenCalled();
@@ -636,7 +751,7 @@ describe("TranslatorManager SPA lifecycle", () => {
     const runtimeHandler =
       browser.runtime.onMessage.addListener.mock.calls[0][0];
     const send = (action, enabled) =>
-      runtimeHandler({ action, args: { enabled } }, {}, jest.fn());
+      runtimeHandler({ action, args: { enabled } }, trustedSender, jest.fn());
 
     send("transbox-toggle", false);
     send("transbox-toggle", false);
@@ -670,7 +785,7 @@ describe("TranslatorManager SPA lifecycle", () => {
     const runtimeHandler =
       browser.runtime.onMessage.addListener.mock.calls[0][0];
     ["transbox-toggle", "mousehover-toggle", "transinput-toggle"].forEach(
-      (action) => runtimeHandler({ action }, {}, jest.fn())
+      (action) => runtimeHandler({ action }, trustedSender, jest.fn())
     );
 
     expect(mockTransboxInstances[0].toggle).toHaveBeenCalledTimes(1);
@@ -692,12 +807,12 @@ describe("TranslatorManager SPA lifecycle", () => {
     const { getSelectionEnabled } = FabManager.mock.calls[0][0];
     const { processActions } = PopupManager.mock.calls[0][0];
     const snapshots = [];
-    const onSelectionChange = (event) => {
-      if (event.detail.action === "transbox-toggle") {
+    const onSelectionChange = (message) => {
+      if (message.action === "transbox-toggle") {
         snapshots.push(getSelectionEnabled());
       }
     };
-    document.addEventListener("kiss-inner", onSelectionChange);
+    const unsubscribe = subscribeInternalMessage(onSelectionChange);
 
     try {
       expect(getSelectionEnabled()).toBe(false);
@@ -714,7 +829,7 @@ describe("TranslatorManager SPA lifecycle", () => {
       expect(FabManager.mock.calls[1][0].getSelectionEnabled()).toBe(false);
       expect(mockTransboxArgs[1].tranboxSetting.transOpen).toBe(false);
     } finally {
-      document.removeEventListener("kiss-inner", onSelectionChange);
+      unsubscribe();
     }
   });
 

@@ -21,19 +21,14 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Test translation adapters and options
+      - name: Test translation and security regressions
         env:
           CI: true
-        run: >-
-          pnpm test --watchAll=false --runInBand --runTestsByPath
-          src/apis/myMemory.test.js
-          src/config/api.test.js
-          src/hooks/Api.test.js
-          src/views/Options/Apis.test.js
-          src/views/Options/AiServices.test.js
-          src/views/Options/FreeApiTrial.test.js
-          src/apis/trans.translate.test.js
-          src/apis/index.test.js
+        run: pnpm test --watchAll=false --runInBand
+      - name: Test offline service security (no models required)
+        run: python3 -m unittest discover -s offline -p 'test_*.py'
+      - name: Audit locked dependencies
+        run: pnpm audit --audit-level high
       - run: pnpm build:chrome
       - run: python3 src/scripts/package-learning.py
       - uses: actions/upload-artifact@v4

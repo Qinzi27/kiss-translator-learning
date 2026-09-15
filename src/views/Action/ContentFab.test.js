@@ -1,10 +1,11 @@
+import * as internalEvents from "../../libs/internalEvents";
+import { emitInternalMessage } from "../../libs/internalEvents";
 jest.mock("../../components/TouchTranslateControl", () => () => null);
 /* eslint-disable testing-library/no-container, testing-library/no-unnecessary-act */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import ContentFab from "./ContentFab";
 import {
-  EVENT_KISS_INNER,
   MSG_OPEN_OPTIONS,
   MSG_OPEN_TRANBOX,
   MSG_POPUP_TOGGLE,
@@ -261,11 +262,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     for (const enabled of [true, true, false, true]) {
       act(() => {
         selectionEnabled = enabled;
-        document.dispatchEvent(
-          new CustomEvent(EVENT_KISS_INNER, {
-            detail: { action: MSG_TRANSBOX_TOGGLE },
-          })
-        );
+        emitInternalMessage({ action: MSG_TRANSBOX_TOGGLE });
       });
       expect(menuItems()[2].getAttribute("aria-disabled")).toBe(
         enabled ? null : "true"
@@ -277,16 +274,12 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
   });
 
   test("removes the selection availability listener when unmounted", () => {
-    const addListener = jest.spyOn(document, "addEventListener");
-    const removeListener = jest.spyOn(document, "removeEventListener");
+    const unsubscribe = jest.fn();
+    const subscribe = jest.spyOn(internalEvents, "subscribeInternalMessage").mockReturnValue(unsubscribe);
     render();
-    const listener = addListener.mock.calls.find(
-      ([type]) => type === EVENT_KISS_INNER
-    )[1];
-
     act(() => root.render(null));
-
-    expect(removeListener).toHaveBeenCalledWith(EVENT_KISS_INNER, listener);
+    expect(unsubscribe).toHaveBeenCalled();
+    subscribe.mockRestore();
   });
 
   test("moves focus with arrow keys, wraps, and supports Home and End", () => {

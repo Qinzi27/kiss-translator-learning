@@ -1,3 +1,5 @@
+import { isTrustedUserEvent } from "./trustedInteraction";
+
 /**
  * 移动端多击/手势监听器。
  * 默认监听单指双击 (Double Tap) 手势，用于在移动端设备上快捷唤起或关闭翻译。
@@ -24,6 +26,7 @@ export function touchTapListener(fn, options = {}) {
 
   // 监听触摸开始事件
   const handleTouchStart = (e) => {
+    if (!isTrustedUserEvent(e)) return;
     // 记录历史最大手指数量，用来区分布局手势（如单指双击 vs 双指单次点击）
     maxTouches = Math.max(maxTouches, e.touches.length);
     startPositions = Array.from(e.touches).map((t) => ({
@@ -34,6 +37,7 @@ export function touchTapListener(fn, options = {}) {
 
   // 监听触摸移动事件，用于过滤“滑动/拖拽”手势而非“点击”
   const handleTouchMove = (e) => {
+    if (!isTrustedUserEvent(e)) return;
     if (isMoved) return;
 
     // 遍历当前触屏的每个点，计算与按下的初始点的距离（欧氏距离）
@@ -57,6 +61,7 @@ export function touchTapListener(fn, options = {}) {
 
   // 监听触摸结束事件
   const handleTouchend = (e) => {
+    if (!isTrustedUserEvent(e)) return;
     // 只有当所有手指都离开屏幕时，才进行最终的手势判定
     if (e.touches.length === 0) {
       if (!isMoved && maxTouches === config.fingers) {

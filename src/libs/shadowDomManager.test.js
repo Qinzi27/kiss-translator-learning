@@ -1,3 +1,9 @@
+// Lifecycle/state tests use synthetic input; the real root guard is exercised
+// in trustedInteraction.test.js instead of pretending these are native clicks.
+jest.mock("./trustedInteraction", () => ({
+  ...jest.requireActual("./trustedInteraction"),
+  guardInjectedUi: jest.fn(() => () => {}),
+}));
 import React, { act, useState } from "react";
 import styled from "@emotion/styled";
 import ShadowDomManager from "./shadowDomManager";

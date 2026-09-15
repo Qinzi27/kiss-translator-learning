@@ -1,3 +1,9 @@
+// Functional gesture fixtures are synthetic. Trust-boundary rejection is
+// tested separately with the real helper, never claimed as browser input.
+jest.mock("./trustedInteraction", () => ({
+  ...jest.requireActual("./trustedInteraction"),
+  isTrustedUserEvent: jest.fn(() => true),
+}));
 import { TouchParagraph, isTouchExcluded } from "./touchParagraph";
 
 const pointer = (
@@ -24,6 +30,7 @@ const pointer = (
 describe("touch paragraph gestures", () => {
   let controller, node, toggle, originalPointer;
   beforeEach(() => {
+    require("./trustedInteraction").isTrustedUserEvent.mockReturnValue(true);
     jest.useFakeTimers();
     originalPointer = window.PointerEvent;
     Object.defineProperty(navigator, "maxTouchPoints", {
@@ -51,6 +58,17 @@ describe("touch paragraph gestures", () => {
     ]) {
       expect(() => controller.observe(candidate)).not.toThrow();
     }
+  });
+
+  test("page-created pointer gestures cannot trigger paragraph translation", () => {
+    require("./trustedInteraction").isTrustedUserEvent.mockImplementation(
+      jest.requireActual("./trustedInteraction").isTrustedUserEvent
+    );
+    controller.setMode("tap");
+    controller.observe(node);
+    pointer(node, "pointerdown");
+    pointer(node, "pointerup");
+    expect(toggle).not.toHaveBeenCalled();
   });
 
   test("form containers allow ordinary article text", () => {

@@ -7,7 +7,6 @@ import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import useWindowSize from "../../hooks/WindowSize";
 import {
-  EVENT_KISS_INNER,
   MSG_OPEN_OPTIONS,
   MSG_POPUP_TOGGLE,
 } from "../../config";
@@ -15,6 +14,7 @@ import PopupCont from "../Popup/PopupCont";
 import { isExt } from "../../libs/client";
 import { sendBgMsg } from "../../libs/msg";
 import { POPUP_STYLES } from "../Popup/styles";
+import { subscribeInternalMessage } from "../../libs/internalEvents";
 
 /**
  * Main view for the floating content-page control panel.
@@ -88,16 +88,13 @@ export default function Action({ translator, processActions }) {
 
   // Subscribe to internal messages that toggle the panel.
   useEffect(() => {
-    const handleStatusUpdate = (event) => {
-      if (event.detail?.action === MSG_POPUP_TOGGLE) {
+    const handleStatusUpdate = (message) => {
+      if (message?.action === MSG_POPUP_TOGGLE) {
         setShowPopup((pre) => !pre);
       }
     };
 
-    document.addEventListener(EVENT_KISS_INNER, handleStatusUpdate);
-    return () => {
-      document.removeEventListener(EVENT_KISS_INNER, handleStatusUpdate);
-    };
+    return subscribeInternalMessage(handleStatusUpdate);
   }, []);
 
   // Refresh the active translation rule and settings when the panel opens.

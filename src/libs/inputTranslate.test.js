@@ -1,3 +1,9 @@
+// Functional gesture fixtures are synthetic. Trust-boundary rejection is
+// tested separately with the real helper, never claimed as browser input.
+jest.mock("./trustedInteraction", () => ({
+  ...jest.requireActual("./trustedInteraction"),
+  isTrustedUserEvent: jest.fn(() => true),
+}));
 const mockUnregisterShortcut = jest.fn();
 
 jest.mock("../config", () => ({
@@ -101,6 +107,7 @@ describe("InputTranslator input button", () => {
   });
 
   beforeEach(() => {
+    require("./trustedInteraction").isTrustedUserEvent.mockReturnValue(true);
     document.body.innerHTML = "";
     mockUnregisterShortcut.mockClear();
     stepShortcutRegister.mockReturnValue(mockUnregisterShortcut);
@@ -118,6 +125,19 @@ describe("InputTranslator input button", () => {
   afterEach(() => {
     translator.disable();
     document.body.innerHTML = "";
+  });
+
+  test("script-created input-button click and touchend cannot submit text", () => {
+    require("./trustedInteraction").isTrustedUserEvent.mockImplementation(
+      jest.requireActual("./trustedInteraction").isTrustedUserEvent
+    );
+    const submit = jest.spyOn(translator, "handleTranslate");
+    const target = Object.assign(document.createElement("textarea"), { value: "Synthetic private fixture" });
+    focusTarget(translator, target);
+    const button = getFloatButton(target);
+    button.click();
+    button.dispatchEvent(new Event("touchend", { bubbles: true }));
+    expect(submit).not.toHaveBeenCalled();
   });
 
   test.each([

@@ -280,12 +280,35 @@ module.exports = {
   webpack: webpackConfig,
   devServer: (configFunction) => (proxy, allowedHost) => {
     const config = configFunction(proxy, allowedHost);
+    // Keep the development preview local and compatible with patched WDS 5.
+    config.host = "127.0.0.1";
+    config.allowedHosts = ["localhost", "127.0.0.1", "[::1]"];
+    config.headers = {};
+    if (config.https) {
+      config.server = {
+        type: "https",
+        options: typeof config.https === "object" ? config.https : {},
+      };
+    }
+    delete config.https;
     const onBeforeSetupMiddleware = config.onBeforeSetupMiddleware;
     const onAfterSetupMiddleware = config.onAfterSetupMiddleware;
     const setupMiddlewares = config.setupMiddlewares;
 
     if (onBeforeSetupMiddleware || onAfterSetupMiddleware) {
       config.setupMiddlewares = (middlewares, devServer) => {
+        devServer.app.use((req, res, next) => {
+          const expectedOrigin = `${config.server?.type === "https" ? "https" : "http"}://${req.headers.host}`;
+          if (
+            (req.headers.origin && req.headers.origin !== expectedOrigin) ||
+            req.headers["sec-fetch-site"] === "cross-site"
+          ) {
+            res.statusCode = 403;
+            res.end("Development preview accepts same-origin requests only.");
+            return;
+          }
+          next();
+        });
         if (onBeforeSetupMiddleware) onBeforeSetupMiddleware(devServer);
         const nextMiddlewares = setupMiddlewares
           ? setupMiddlewares(middlewares, devServer)

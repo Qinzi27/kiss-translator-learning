@@ -68,43 +68,47 @@ export function applyNetworkPolicy(
   mode = NETWORK_POLICY_NORMAL
 ) {
   const policy = normalizeNetworkPolicy(mode);
-  if (policy === NETWORK_POLICY_NORMAL) return init;
 
   const raw = String(input?.url ?? input).trim();
   let url;
   try {
     url = new URL(raw);
   } catch {
-    throw new NetworkPolicyError("受限联网模式仅接受完整的 HTTP(S) 服务地址。");
+    throw new NetworkPolicyError("请求仅接受完整的 HTTP(S) 服务地址。");
   }
   if (!["http:", "https:"].includes(url.protocol)) {
-    throw new NetworkPolicyError("受限联网模式仅允许 HTTP(S) 请求。");
+    throw new NetworkPolicyError("请求仅允许 HTTP(S) 地址。");
+  }
+
+  const authority = raw.match(/^https?:\/\/([^/?#]*)/i)?.[1] || "";
+  const writtenHost = authority.startsWith("[")
+    ? authority.slice(0, authority.indexOf("]") + 1)
+    : authority.split(":")[0];
+  const explicitLoopback = !url.username && !url.password &&
+    LOOPBACK_HOSTS.has(url.hostname.toLowerCase()) &&
+    LOOPBACK_HOSTS.has(writtenHost.toLowerCase());
+  if (url.username || url.password) {
+    throw new NetworkPolicyError("服务地址不能包含用户名或密码，请使用服务的授权设置。");
+  }
+  if (url.protocol === "http:" && !explicitLoopback) {
+    throw new NetworkPolicyError("已阻止不安全的远程 HTTP 请求，请将服务地址改为 HTTPS；HTTP 仅允许明确的本机回环地址。");
   }
 
   if (policy === NETWORK_POLICY_OFFLINE) {
     // Check the written host as well: URL canonicalizes 127.1, integer IPs and
     // encoded hostnames. Only these three explicit loopback spellings are accepted.
-    const authority = raw.match(/^https?:\/\/([^/?#]*)/i)?.[1] || "";
-    const writtenHost = authority.startsWith("[")
-      ? authority.slice(0, authority.indexOf("]") + 1)
-      : authority.split(":")[0];
-    if (
-      url.username ||
-      url.password ||
-      !LOOPBACK_HOSTS.has(url.hostname.toLowerCase()) ||
-      !LOOPBACK_HOSTS.has(writtenHost.toLowerCase())
-    ) {
+    if (!explicitLoopback) {
       throw new NetworkPolicyError(
         "仅本机离线模式已阻止远程请求。请选择运行在 localhost、127.0.0.1 或 [::1] 的本地服务。"
       );
     }
-  } else if (isGoogleHostname(url.hostname)) {
+  } else if (policy === NETWORK_POLICY_NO_GOOGLE && isGoogleHostname(url.hostname)) {
     throw new NetworkPolicyError(
       "屏蔽谷歌模式已阻止此谷歌域名请求。请手动选择微软翻译或本地服务；不会自动切换服务。"
     );
   }
 
-  // An allowed endpoint must not redirect to an endpoint outside the policy.
+  // Also protects normal mode against HTTPS → HTTP credential downgrades.
   return { ...init, redirect: "error" };
 }
 
@@ -113,10 +117,10 @@ export async function fetchUnderNetworkPolicy(input, init, policy) {
   try {
     return await fetch(input, guardedInit);
   } catch (error) {
-    if (policy === NETWORK_POLICY_NORMAL || error?.name === "AbortError")
+    if (error?.name === "AbortError")
       throw error;
     throw new Error(
-      "受限联网请求未完成：请检查所选服务是否运行、跨域配置及网络连接；此模式禁止 HTTP 重定向。"
+      "安全联网请求未完成：请检查所选服务是否运行、跨域配置及网络连接；为防止凭据泄漏，禁止 HTTP 重定向。"
     );
   }
 }

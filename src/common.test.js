@@ -19,6 +19,7 @@ jest.mock("./libs/iframe", () => ({
 }));
 
 jest.mock("./libs/gm", () => ({
+  USERSCRIPT_SETTINGS_DISABLED: "安全版已停用油猴外置设置页；请使用 Chrome / Edge 扩展。",
   handlePing: jest.fn(),
   injectScript: jest.fn(),
 }));
@@ -364,7 +365,7 @@ describe("common iframe startup", () => {
     }
   });
 
-  test("falls back when unsafeWindow grant exists but unsafeWindow is unavailable", async () => {
+  test("does not export a bridge when unsafeWindow is unavailable", async () => {
     const originalHref = window.location.href;
     window.history.pushState({}, "", "/options.html");
     process.env.REACT_APP_OPTIONSPAGE = window.location.href;
@@ -379,10 +380,9 @@ describe("common iframe startup", () => {
     try {
       await run(true);
 
-      expect(injectInlineJs).toHaveBeenCalledTimes(1);
-      expect(injectInlineJs.mock.calls[0][1]).toBe(
-        "kiss-translator-options-injector"
-      );
+      expect(injectInlineJs).not.toHaveBeenCalled();
+      expect(document.querySelector("#KISS-Translator-Message").textContent).toContain("已停用油猴外置设置页");
+      expect(require("./libs/gm").handlePing).not.toHaveBeenCalled();
       expectNoNormalUserscriptStartup();
     } finally {
       window.history.pushState({}, "", originalHref);
@@ -390,7 +390,7 @@ describe("common iframe startup", () => {
     }
   });
 
-  test("mounts GM directly when unsafeWindow is available", async () => {
+  test("does not expose GM even when unsafeWindow is available", async () => {
     const originalHref = window.location.href;
     const gm = {
       info: {
@@ -407,11 +407,9 @@ describe("common iframe startup", () => {
     try {
       await run(true);
 
-      expect(globalThis.unsafeWindow.GM).toBe(gm);
-      expect(globalThis.unsafeWindow.APP_INFO).toEqual({
-        name: process.env.REACT_APP_NAME,
-        version: process.env.REACT_APP_VERSION,
-      });
+      expect(globalThis.unsafeWindow.GM).toBeUndefined();
+      expect(globalThis.unsafeWindow.APP_INFO).toBeUndefined();
+      expect(document.querySelector("#KISS-Translator-Message").textContent).toContain("Chrome / Edge");
       expect(injectInlineJs).not.toHaveBeenCalled();
       expectNoNormalUserscriptStartup();
     } finally {
@@ -420,7 +418,7 @@ describe("common iframe startup", () => {
     }
   });
 
-  test("falls back when GM grant metadata is missing", async () => {
+  test("does not export a bridge when GM grant metadata is missing", async () => {
     const originalHref = window.location.href;
     window.history.pushState({}, "", "/options.html");
     process.env.REACT_APP_OPTIONSPAGE = window.location.href;
@@ -429,10 +427,9 @@ describe("common iframe startup", () => {
     try {
       await run(true);
 
-      expect(injectInlineJs).toHaveBeenCalledTimes(1);
-      expect(injectInlineJs.mock.calls[0][1]).toBe(
-        "kiss-translator-options-injector"
-      );
+      expect(injectInlineJs).not.toHaveBeenCalled();
+      expect(document.querySelector("#KISS-Translator-Message").textContent).toContain("已停用油猴外置设置页");
+      expect(require("./libs/gm").handlePing).not.toHaveBeenCalled();
       expectNoNormalUserscriptStartup();
     } finally {
       window.history.pushState({}, "", originalHref);
@@ -440,7 +437,7 @@ describe("common iframe startup", () => {
     }
   });
 
-  test("uses setting page proxy for dev userscript options page", async () => {
+  test("blocks the dev userscript options bridge", async () => {
     const originalHref = window.location.href;
     window.history.pushState({}, "", "/options");
     process.env.REACT_APP_OPTIONSPAGE_DEV = window.location.href;
@@ -449,10 +446,9 @@ describe("common iframe startup", () => {
     try {
       await run(true);
 
-      expect(injectInlineJs).toHaveBeenCalledTimes(1);
-      expect(injectInlineJs.mock.calls[0][1]).toBe(
-        "kiss-translator-options-injector"
-      );
+      expect(injectInlineJs).not.toHaveBeenCalled();
+      expect(document.querySelector("#KISS-Translator-Message").textContent).toContain("已停用油猴外置设置页");
+      expect(require("./libs/gm").handlePing).not.toHaveBeenCalled();
       expectNoNormalUserscriptStartup();
     } finally {
       window.history.pushState({}, "", originalHref);
@@ -460,7 +456,7 @@ describe("common iframe startup", () => {
     }
   });
 
-  test("uses setting page proxy for local userscript options page", async () => {
+  test("blocks the local userscript options bridge", async () => {
     const originalHref = window.location.href;
     window.history.pushState({}, "", "/options.html");
     process.env.REACT_APP_OPTIONSPAGE_LOCAL = window.location.href;
@@ -469,10 +465,9 @@ describe("common iframe startup", () => {
     try {
       await run(true);
 
-      expect(injectInlineJs).toHaveBeenCalledTimes(1);
-      expect(injectInlineJs.mock.calls[0][1]).toBe(
-        "kiss-translator-options-injector"
-      );
+      expect(injectInlineJs).not.toHaveBeenCalled();
+      expect(document.querySelector("#KISS-Translator-Message").textContent).toContain("已停用油猴外置设置页");
+      expect(require("./libs/gm").handlePing).not.toHaveBeenCalled();
       expectNoNormalUserscriptStartup();
     } finally {
       window.history.pushState({}, "", originalHref);

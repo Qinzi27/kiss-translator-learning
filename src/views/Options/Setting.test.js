@@ -58,8 +58,10 @@ jest.mock("../../libs/log", () => ({
   kissLog: jest.fn(),
   LogLevel: { INFO: { value: 3 } },
 }));
-jest.mock("./UploadButton", () => () => null);
-jest.mock("./DownloadButton", () => () => null);
+let mockUploadProps;
+jest.mock("./UploadButton", () => (props) => { mockUploadProps = props; return null; });
+let mockDownloadProps;
+jest.mock("./DownloadButton", () => (props) => { mockDownloadProps = props; return null; });
 jest.mock("../../hooks/ValidationInput", () => () => null);
 jest.mock("./OverviewHero", () => () => null);
 
@@ -108,6 +110,24 @@ async function renderSettings() {
 }
 
 describe("Settings overview layout", () => {
+  test("exports a sanitized service skeleton and explains local-only credentials", async () => {
+    browser.commands.getAll.mockResolvedValue([]);
+    useAlert.mockReturnValue(alert);
+    const updateSetting = jest.fn();
+    useSetting.mockReturnValue({ setting: { uiLang: "zh", logLevel: 3, clearCache: false, transApis: [{
+      apiSlug: "test", apiType: "OpenAI", key: "PRIVATE_VALUE", reqHook: "PRIVATE_SCRIPT",
+      url: "https://example.test/v1/chat/completions", hiddenField: "PRIVATE_HIDDEN",
+    }] }, updateSetting });
+    useFab.mockReturnValue({ fab: {}, updateFab: jest.fn() });
+    const { container, root } = await renderSettings();
+    const exported = mockDownloadProps.handleData();
+    expect(exported).not.toContain("PRIVATE_");
+    expect(JSON.parse(exported).transApis[0].apiSlug).toBe("test");
+    expect(container.textContent).toContain("不包含 API Key");
+    await act(async () => { await mockUploadProps.handleImport(exported); });
+    expect(updateSetting.mock.calls[0][0].transApis[0].key).toBe("PRIVATE_VALUE");
+    act(() => root.unmount());
+  });
   test("keeps the list-style grid free of spacing gutters", async () => {
     browser.commands.getAll.mockResolvedValue([]);
     useAlert.mockReturnValue({ info: jest.fn(), success: jest.fn() });

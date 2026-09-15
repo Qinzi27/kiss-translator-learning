@@ -7,10 +7,10 @@ import Stack from "@mui/material/Stack";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import {
-  EVENT_KISS_INNER,
   MSG_TOUCH_TRANSLATE_MODE_SET,
   MSG_TOUCH_TRANSLATE_STATE,
 } from "../config";
+import { subscribeInternalMessage } from "../libs/internalEvents";
 import { sendTabMsg } from "../libs/msg";
 import { useMouseHoverSetting } from "../hooks/MouseHover";
 import { useI18n } from "../hooks/I18n";
@@ -45,16 +45,15 @@ function useTouchState(processActions) {
   );
   useEffect(() => {
     dispatch(MSG_TOUCH_TRANSLATE_STATE);
-    const update = (event) => {
+    const update = (message) => {
       if (
-        event.detail?.action === MSG_TOUCH_TRANSLATE_STATE &&
-        event.detail?.touchTranslate
+        message?.action === MSG_TOUCH_TRANSLATE_STATE &&
+        message?.touchTranslate
       ) {
-        setState(event.detail.touchTranslate);
+        setState(message.touchTranslate);
       }
     };
-    document.addEventListener(EVENT_KISS_INNER, update);
-    return () => document.removeEventListener(EVENT_KISS_INNER, update);
+    return subscribeInternalMessage(update);
   }, [dispatch]);
   return { state, failed, dispatch };
 }

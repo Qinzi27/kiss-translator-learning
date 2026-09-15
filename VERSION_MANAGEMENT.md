@@ -1,6 +1,6 @@
 # 学习版版本与发布
 
-本分支基于上游 2.0.32。Chrome 的数字版本使用 `public/manifest.json` 的 `version`，当前为 `2.0.32`；学习版标识使用 `version_name`，当前为 `2.0.32-learning.3`，GitHub 标签对应 `v2.0.32-learning.3`。
+本分支基于上游 2.0.32。Chrome 的数字版本使用 `public/manifest.json` 的 `version`，当前为 `2.0.33`；学习版标识使用 `version_name`，当前为 `2.0.33-learning.4`，GitHub 标签对应 `v2.0.33-learning.4`。
 
 更新学习版时同步修改 `version_name`、README 和 `RELEASE-NOTES.md`。若需要提升浏览器数字版本，使用保留的 `pnpm version:*` / `pnpm sync-version` 脚本同步 package.json、.env 和各平台清单，再检查学习版 `version_name`。
 
@@ -25,6 +25,6 @@
 
 ## GitHub Actions
 
-`.github/workflows/release.yml` 已改为手动运行的 **Build learning edition**：仅运行定向测试、构建 Chrome、生成 ZIP 和校验文件并保存构建产物。它不会在标签推送后自动发布 Release 或部署 Pages；首次 fork 后可在 Actions 页面按需启用并运行。
+`.github/workflows/release.yml` 已改为手动运行的 **Build learning edition**：运行全套 JavaScript 回归、离线服务合成测试和依赖审计，构建 Chrome、生成 ZIP 和校验文件并保存构建产物。它不会在标签推送后自动发布 Release 或部署 Pages；首次 fork 后可在 Actions 页面按需启用并运行。
 
 上游的全平台构建脚本与发布技能仍保留供学习，其 `dev → master` 发版规则不作为本学习分支的默认流程。其他平台的产物不属于本次发布验收范围。

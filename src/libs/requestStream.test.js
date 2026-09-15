@@ -27,7 +27,7 @@ jest.mock("./storage", () => ({
   getSettingWithDefault: jest.fn(() => Promise.resolve({ httpTimeout: 1000 })),
 }));
 
-import { fetchStreamNative, requestStream } from "./requestStream";
+import { fetchStreamNative, requestStream, fetchStreamGM } from "./requestStream";
 import { getSettingWithDefault } from "./storage";
 
 describe("fetchStreamNative", () => {
@@ -115,7 +115,7 @@ describe("fetchStreamNative", () => {
   });
 });
 
-describe("requestStream in userscript", () => {
+describe("legacy GM SSE decoder (not used by request routing)", () => {
   let requestDetails;
   let abort;
 
@@ -161,7 +161,7 @@ describe("requestStream in userscript", () => {
         .mockResolvedValueOnce({ done: true }),
     };
 
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -180,7 +180,7 @@ describe("requestStream in userscript", () => {
   });
 
   test("uses onprogress responseText when readable stream is unavailable", async () => {
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -229,7 +229,7 @@ describe("requestStream in userscript", () => {
       cancel,
     };
 
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -276,7 +276,7 @@ describe("requestStream in userscript", () => {
       cancel: jest.fn(() => Promise.resolve()),
     };
 
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -295,7 +295,7 @@ describe("requestStream in userscript", () => {
       read: jest.fn().mockRejectedValueOnce(new Error("stream read failed")),
     };
 
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -306,11 +306,10 @@ describe("requestStream in userscript", () => {
     await expect(first).rejects.toThrow("stream read failed");
   });
 
-  test("converts second-based timeout values before passing them to GM", async () => {
-    const iterator = requestStream(
+  test("legacy decoder passes its explicit millisecond timeout to GM", async () => {
+    const iterator = fetchStreamGM(
       "https://example.test/stream",
-      {},
-      { httpTimeout: 30 }
+      { timeout: 30000 }
     );
     const first = iterator.next();
     await waitForRequestDetails();
@@ -323,7 +322,7 @@ describe("requestStream in userscript", () => {
   });
 
   test("does not duplicate cumulative responseText chunks", async () => {
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -344,7 +343,7 @@ describe("requestStream in userscript", () => {
   });
 
   test("decodes UTF-8 byte-string responseText from GM progress", async () => {
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -366,7 +365,7 @@ describe("requestStream in userscript", () => {
   });
 
   test("throws readable error when no stream or progress text is available", async () => {
-    const iterator = requestStream("https://example.test/stream", {});
+    const iterator = fetchStreamGM("https://example.test/stream", {});
     const first = iterator.next();
     await waitForRequestDetails();
 
@@ -374,5 +373,27 @@ describe("requestStream in userscript", () => {
     requestDetails.onload({});
 
     await expect(first).rejects.toThrow("GM stream response is not readable.");
+  });
+});
+
+
+describe("secure userscript stream routing", () => {
+  afterEach(() => { mockIsGm = false; delete global.GM; });
+  test("normal mode rejects HTTP before invoking native or GM transport", async () => {
+    mockIsGm = true;
+    global.GM = { xmlHttpRequest: jest.fn() };
+    global.fetch = jest.fn();
+    const stream = requestStream("http://example.test/stream", {});
+    await expect(stream.next()).rejects.toThrow("HTTPS");
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.GM.xmlHttpRequest).not.toHaveBeenCalled();
+  });
+  test("normal userscript HTTPS uses native redirect protection", async () => {
+    mockIsGm = true;
+    global.GM = { xmlHttpRequest: jest.fn() };
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, body: { getReader: () => ({ read: async () => ({ done: true }), cancel: jest.fn() }) } });
+    await requestStream("https://example.test/stream", { redirect: "follow" }).next();
+    expect(global.fetch.mock.calls[0][1].redirect).toBe("error");
+    expect(global.GM.xmlHttpRequest).not.toHaveBeenCalled();
   });
 });

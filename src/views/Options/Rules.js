@@ -869,7 +869,7 @@ function RuleFields({ rule, rules, setShow, setKeyword }) {
             <CodeField
               size="small"
               label={i18n("translate_start_hook")}
-              helperText={i18n("translate_start_hook_helper")}
+              helperText="安全版仅保存脚本文本，不执行翻译开始脚本。"
               name="transStartHook"
               value={transStartHook}
               disabled={disabled}
@@ -880,7 +880,7 @@ function RuleFields({ rule, rules, setShow, setKeyword }) {
             <CodeField
               size="small"
               label={i18n("translate_end_hook")}
-              helperText={i18n("translate_end_hook_helper")}
+              helperText="安全版仅保存脚本文本，不执行翻译结束脚本。"
               name="transEndHook"
               value={transEndHook}
               disabled={disabled}
@@ -903,7 +903,7 @@ function RuleFields({ rule, rules, setShow, setKeyword }) {
             <CodeField
               size="small"
               label={i18n("inject_js")}
-              helperText={i18n("inject_js_helper")}
+              helperText="安全版仅保存脚本文本，不执行页面注入脚本。"
               name="injectJs"
               value={injectJs}
               disabled={disabled}
