@@ -6,7 +6,7 @@ Argos 在自己的电脑上进行中英翻译，扩展通过 `http://127.0.0.1:8
 
 ## 取得脚本与 Python
 
-从 [同一 GitHub Release](https://github.com/Qinzi27/kiss-translator-learning/releases/tag/v2.0.33-learning.4) 下载 `kiss-translator-learning-source.zip` 并解压，或使用同一版本的源码仓库。在包含 `offline`、`src` 和 `package.json` 的**源码项目根目录**打开终端。发布的 Chrome ZIP 根目录也附带 `offline` 脚本；使用它时，在与 `offline` 同级的目录运行下列命令，不是在里面的 `chrome` 子目录运行。只加载浏览器扩展不会自动执行准备或启动服务。
+从 [同一 GitHub Release](https://github.com/Qinzi27/kiss-translator-learning/releases/tag/v2.0.34-learning.5) 下载 `kiss-translator-learning-source.zip` 并解压，或使用同一版本的源码仓库。在包含 `offline`、`src` 和 `package.json` 的**源码项目根目录**打开终端。发布的 Chrome ZIP 根目录也附带 `offline` 脚本；使用它时，在与 `offline` 同级的目录运行下列命令，不是在里面的 `chrome` 子目录运行。只加载浏览器扩展不会自动执行准备或启动服务。
 
 以下命令按 Python 3.12 编写。安装 Python 后先确认 `python3.12 --version`，Windows 使用 `py -3.12 --version`。命令找不到时先解决 Python 安装/路径，不要改用系统中不明版本的环境。
 

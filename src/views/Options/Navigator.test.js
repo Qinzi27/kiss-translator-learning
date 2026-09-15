@@ -2,11 +2,17 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import Navigator from "./Navigator";
+import { openPdfReader } from "../Popup/pdfEntry";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let mockUiLang = "en";
 let mockLabels = {};
+
+jest.mock("../Popup/pdfEntry", () => ({
+  openPdfReader: jest.fn(),
+  PDF_USERSCRIPT_HINT: "油猴版本暂不支持。",
+}));
 
 jest.mock("../../hooks/I18n", () => ({
   useI18n: () => (key) => mockLabels[key] || key,
@@ -22,9 +28,26 @@ jest.mock("../../components/Logo", () => {
 beforeEach(() => {
   mockUiLang = "en";
   mockLabels = {};
+  openPdfReader.mockReset().mockResolvedValue({ id: 19 });
 });
 
 describe("settings navigator semantics", () => {
+  test("opens a separate empty PDF reader from mobile navigation", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onClose = jest.fn();
+    act(() => root.render(
+      <MemoryRouter><Navigator open isMobile onClose={onClose} /></MemoryRouter>
+    ));
+    expect(openPdfReader).not.toHaveBeenCalled();
+    await act(async () => container.querySelector('button[aria-label="PDF 双语阅读"]').click());
+    expect(openPdfReader).toHaveBeenCalledWith({ prefillCurrentTab: false });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    container.remove();
+  });
+
   test.each([
     ["tr", "İstem Yönetimi", "istem"],
     ["tr", "İstem Yönetimi", "İSTEM"],

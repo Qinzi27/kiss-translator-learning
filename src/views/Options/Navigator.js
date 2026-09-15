@@ -19,6 +19,7 @@ import { NavLink } from "react-router";
 import Logo from "../../components/Logo";
 import { useI18n } from "../../hooks/I18n";
 import { useSetting } from "../../hooks/Setting";
+import PdfReaderButton from "../Popup/PdfReaderButton";
 
 function normalizeSearchText(text, uiLang) {
   try {
@@ -66,6 +67,7 @@ export default function Navigator({ open, isMobile = false, onClose }) {
           ],
           ["hover", i18n("touch_paragraph"), "/mousehover", SegmentRoundedIcon],
           ["input", i18n("input_translate"), "/input", KeyboardRoundedIcon],
+          ["pdf", "PDF 双语阅读", "/pdf.html", DescriptionRoundedIcon],
           [
             "subtitle",
             i18n("subtitle_translate"),
@@ -173,7 +175,9 @@ export default function Navigator({ open, isMobile = false, onClose }) {
               {group.label && (
                 <h2 className="kt-options-nav__label">{group.label}</h2>
               )}
-              {group.items.map(([id, label, path, Icon]) => (
+              {group.items.map(([id, label, path, Icon]) => id === "pdf" ? (
+                <PdfReaderButton key={id} navigation onOpened={isMobile ? onClose : undefined} />
+              ) : (
                 <NavLink
                   className="kt-options-nav__link"
                   to={path}

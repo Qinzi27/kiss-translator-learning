@@ -1,0 +1,159 @@
+{
+  "status": "learning.5 prerelease validation; installed extension acceptance pending",
+  "checkedAt": "2026-09-15T09:58:55.481757+00:00",
+  "pdfjs": "6.3.289",
+  "buildVariant": "legacy",
+  "npmAudit": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 206,
+    "devDependencies": 1275,
+    "optionalDependencies": 14,
+    "totalDependencies": 1493
+  },
+  "pnpmLockSha256": "54b9aa591742c525b05783e6a11aa12f69048df54294ef5586b44ac9ddfa8995",
+  "browserPreview": {
+    "environment": "Codex in-app Chromium, local Web development server",
+    "paper": "https://arxiv.org/pdf/2402.17764v1",
+    "loadSource": "downloaded public paper served temporarily from loopback server",
+    "pages": 8,
+    "paragraphs": 200,
+    "networkPolicy": "no-google",
+    "translationService": "MyMemory",
+    "translatedPage": 1,
+    "translatedParagraphs": 32,
+    "translationCache": false,
+    "switchServicePreservesTranslations": "passed",
+    "fullDocumentStartedAndStopped": "passed; not completed",
+    "examples": [
+      {
+        "source": "The Era of 1-bit LLMs:",
+        "translation": "1位LLM的时代："
+      }
+    ]
+  },
+  "notVerified": [
+    "Installed Chrome/Edge extension environment",
+    "Full-document completion of all 200 paragraphs",
+    "New Argos offline end-to-end PDF run",
+    "Every paper website or every PDF layout"
+  ],
+  "limitations": [
+    "No OCR",
+    "No translated-PDF export",
+    "Formula/table/rotated text extraction order and translation quality are not guaranteed",
+    "npm audit only checks known advisories for the locked dependency graph"
+  ],
+  "javascriptTests": {
+    "suites": 162,
+    "passed": 2553,
+    "failed": 0,
+    "node": "24.19.0",
+    "syntheticOnly": true
+  },
+  "chromeBuild": {
+    "status": "passed",
+    "bytes": 13963494,
+    "pdfjsAssetSha256": {
+      "pdfjs/pdf.mjs": "91e29f812c593904e8d48d022db5ddf93e3443575d4765ac9bfbb42494cfbd8d",
+      "pdfjs/pdf.worker.mjs": "df3bf6bf6b8b8dac8a4042d8c4ecf1cf21e1d197e0fe231c192122409eba656b",
+      "pdfjs/LICENSE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    "rawUpstreamBytesMatch": true,
+    "licensesPreserved": true,
+    "scriptingModulesExcluded": true,
+    "temporaryPaperExcluded": true,
+    "temporaryQuickFixtureExcluded": true,
+    "manifestUnchanged": true,
+    "quickLaunchCodePresent": true,
+    "explicitChooserCodePresent": true
+  },
+  "initialPdfTests": {
+    "suites": 160,
+    "passed": 2479,
+    "failed": 0,
+    "node": "24.19.0",
+    "syntheticOnly": true
+  },
+  "portableReading": {
+    "browserEnvironment": "Codex in-app Chromium, local Web development server",
+    "fixture": "self-authored three-page PDF, temporary public file removed before build",
+    "provider": "MyMemory",
+    "networkPolicy": "no-google",
+    "translationCache": false,
+    "manualAutoPageCheckbox": "passed",
+    "pagesTranslatedOnDemand": [1, 2, 3],
+    "stopDisablesAutoPages": "passed",
+    "previousTranslationsPreservedAfterStop": "passed",
+    "examples": [
+      {
+        "source": "A browser extension can translate this PDF.",
+        "translation": "浏览器扩展程序可以翻译此PDF。"
+      },
+      {
+        "source": "Offline models keep document text on this computer.",
+        "translation": "脱机模型在此计算机上保留文档文本。"
+      },
+      {
+        "source": "Stop translation whenever you need.",
+        "translation": "在您需要时随时停止翻译。"
+      }
+    ],
+    "extensionSessionAndCommands": "synthetic regression only; real installed environment not verified",
+    "localFileUrlPermissions": "synthetic regression only; real installed environment not verified"
+  },
+  "fileChooserTranslation": {
+    "readerTests": {
+      "passed": 21,
+      "failed": 0,
+      "scope": "targeted; overlaps earlier full suite"
+    },
+    "chromeBuild": "passed",
+    "manualReadOnlyActionPreserved": true,
+    "explicitSelectionTranslatesCurrentPage": true,
+    "cancelledSelectionDoesNotTranslate": true,
+    "fileUrlPermissionFallbackTest": "passed with mocks",
+    "installedBrowserUiVerification": "blocked by browser URL policy; awaiting user feedback"
+  },
+  "localDocumentCheck": {
+    "pages": 58,
+    "bytes": 930227,
+    "textItems": 5515,
+    "maxPageItems": 309,
+    "utf16Characters": 134950,
+    "translationBlocks": 901,
+    "maxBlockUtf8Bytes": 413,
+    "maxBlockCodePoints": 400,
+    "pdfjsParse": "passed locally in Node",
+    "localArgosProbeHttpStatus": 200,
+    "externalTranslationUsed": false,
+    "complexTables": "reading-order limitations; compare with original",
+    "documentIncludedInRepository": false
+  },
+  "version": "2.0.34-learning.5",
+  "finalValidation": {
+    "javascriptSuites": 167,
+    "javascriptTests": 2628,
+    "javascriptFailed": 0,
+    "offlineSyntheticTests": 29,
+    "chromeProductionBuild": "passed",
+    "chromeApplicationMetadataVersion": "153.0.8010.36",
+    "nativeMimeSupportMinimumChrome": 151,
+    "nativeMimeInstalledAcceptance": "not performed",
+    "nativeMimeAndBufferVerification": "mocked regressions; no new cloud requests",
+    "prefetchPages": 2,
+    "maxConcurrentRequests": 2,
+    "sessionMaxPagePartitions": 80,
+    "sessionMaxBytes": 8388608,
+    "liveMaxPages": 80,
+    "liveMaxBytes": 8388608,
+    "maxTranslationUtf16Chars": 16000,
+    "cacheLifetime": "extension storage.session; browser session end clears; preview sessionStorage differs",
+    "userPdfIncludedInArtifacts": false
+  }
+}

@@ -40,6 +40,7 @@ import { readClipboardTextIfAllowed } from "../../libs/clipboard";
 import { POPUP_STYLES } from "./styles";
 import { loadPopupData } from "./loadData";
 import { REVIEW_URL, SUPPORT_URL } from "./supportLinks";
+import PdfReaderButton from "./PdfReaderButton";
 
 /**
  * Fit a newly opened separate window after measuring its rendered content.
@@ -512,6 +513,7 @@ export default function Popup() {
             />
           ))}
         </Tabs>
+        <PdfReaderButton prefillCurrentTab />
       </div>
       <div
         id="kt-popup-active-panel"

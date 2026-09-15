@@ -64,6 +64,8 @@ export const OPTIONS_STYLES = String.raw`
 .kt-options-nav__group:first-child { margin-top: 0; }
 .kt-options-nav__label { margin: 0 14px 6px; color: var(--kt-onv); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .kt-options-nav__link { min-height: 44px; display: flex; align-items: center; gap: 13px; padding: 0 16px; border-radius: 999px; color: var(--kt-onv); text-decoration: none; font-size: 13px; font-weight: 550; transition: background .3s var(--kt-spring), color .3s, transform .15s; }
+.kt-options-nav__link--button { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; font-family: inherit; }
+.kt-options-nav__link--button:disabled { opacity: .55; cursor: default; }
 @media (hover: hover) {
   .kt-options-nav__link:hover { background: var(--kt-sf2); color: var(--kt-on); }
 }

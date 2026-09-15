@@ -16,6 +16,7 @@ REQUIRED_DOCUMENTS = (
     "README.en.md",
     "START-HERE.md",
     "SECURITY.md",
+    "docs/PDF-READER.md",
     "AI-SERVICES.md",
     "TRANSLATION-SKILL.md",
     "VALIDATION.md",
@@ -23,6 +24,7 @@ REQUIRED_DOCUMENTS = (
     "VERSION_MANAGEMENT.md",
     "custom-api_v2.md",
     "validation/free-api-live.json",
+    "validation/pdf-preview.json",
 )
 EXCLUDED_SOURCE_FILES = {"PAUSED-HANDOFF.md", "dev-server-check.log"}
 EXCLUDED_DIRECTORIES = {
@@ -81,14 +83,15 @@ def main():
     build_manifest = json.loads(regular_file(build, "manifest.json").read_text(encoding="utf-8"))
     if not source_manifest.get("version"):
         raise SystemExit("Source manifest has no version.")
-    for field in ("version", "version_name"):
+    for field in ("version", "version_name", "mime_types_handler"):
         if source_manifest.get(field) != build_manifest.get(field):
             raise SystemExit(
                 f"Manifest {field} mismatch: source={source_manifest.get(field)!r}, "
                 f"build={build_manifest.get(field)!r}. Rebuild before packaging."
             )
 
-    required = {"background.js", "content.js", "popup.html", "options.html"}
+    required = {"background.js", "content.js", "popup.html", "options.html",
+                "pdf.html", "pdf.js", "pdfjs/pdf.mjs", "pdfjs/pdf.worker.mjs", "pdfjs/LICENSE"}
     for content in build_manifest.get("content_scripts", []):
         required.update(content.get("js", []))
         required.update(content.get("css", []))

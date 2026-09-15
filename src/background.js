@@ -57,6 +57,7 @@ import { injectInlineJsBg, injectInternalCss } from "./libs/injector";
 import { kissLog, logger } from "./libs/log";
 import { chromeDetect, chromeTranslate } from "./libs/builtinAI";
 import { sha256 } from "./libs/utils";
+import { launchPdfInTab } from "./libs/pdfLaunch";
 
 globalThis.__KISS_CONTEXT__ = "background";
 
@@ -758,6 +759,23 @@ browser.runtime.onMessage.addListener(async ({ action, args }, sender) => {
   return handler(args, sender);
 });
 
+async function toggleTranslation(tab) {
+  try {
+    const currentTab =
+      tab ||
+      (
+        await browser.tabs.query({
+          active: true,
+          lastFocusedWindow: true,
+        })
+      )[0];
+    if (await launchPdfInTab(currentTab)) return;
+    await sendTabMsg(MSG_TRANS_TOGGLE);
+  } catch (error) {
+    kissLog("toggle translation or open PDF reader", error);
+  }
+}
+
 /**
  * 监听浏览器系统快捷键事件 (browser.commands)。
  * 用户在 manifest 中声明的快捷键按下时，后台直接将对应的翻译指令广播给前台 content 脚本。
@@ -765,8 +783,7 @@ browser.runtime.onMessage.addListener(async ({ action, args }, sender) => {
 browser.commands?.onCommand?.addListener?.((command) => {
   switch (command) {
     case CMD_TOGGLE_TRANSLATE:
-      sendTabMsg(MSG_TRANS_TOGGLE);
-      break;
+      return toggleTranslation();
     case CMD_TOGGLE_TRANSLATE_ONLY:
       sendTabMsg(MSG_TRANS_TOGGLE_ONLY);
       break;
@@ -796,11 +813,10 @@ browser.commands?.onCommand?.addListener?.((command) => {
  * 触发时，通过 Chrome 消息管道将对应指令转发给用户所点击页面的前台 Content Script。
  */
 browser?.contextMenus?.onClicked?.addListener?.(
-  ({ menuItemId, selectionText }) => {
+  ({ menuItemId, selectionText }, tab) => {
     switch (menuItemId) {
       case CMD_TOGGLE_TRANSLATE:
-        sendTabMsg(MSG_TRANS_TOGGLE);
-        break;
+        return toggleTranslation(tab);
       case CMD_TOGGLE_TRANSLATE_ONLY:
         sendTabMsg(MSG_TRANS_TOGGLE_ONLY);
         break;

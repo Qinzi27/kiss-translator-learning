@@ -8,6 +8,7 @@ import { sendBgMsg } from "../../libs/msg";
 import { MSG_FIT_SEPARATE_WINDOW, STOKEY_SETTING } from "../../config";
 import { SEPARATE_WINDOW_CONTENT_WIDTH } from "../../config/app";
 import { loadPopupData } from "./loadData";
+import { openPdfReader } from "./pdfEntry";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let mockIsFirefox = false;
@@ -44,6 +45,10 @@ jest.mock("../../libs/browser", () => ({
 }));
 jest.mock("../../libs/msg", () => ({ sendBgMsg: jest.fn() }));
 jest.mock("./loadData", () => ({ loadPopupData: jest.fn() }));
+jest.mock("./pdfEntry", () => ({
+  openPdfReader: jest.fn(),
+  PDF_USERSCRIPT_HINT: "油猴版本暂不支持。",
+}));
 jest.mock("./PopupCont", () => {
   const React = require("react");
   return () => React.createElement("div", { "data-testid": "page-panel" });
@@ -536,6 +541,7 @@ describe("Popup default view", () => {
     readClipboardTextIfAllowed.mockReset();
     loadPopupData.mockReset();
     loadPopupData.mockResolvedValue({ rule: {}, setting });
+    openPdfReader.mockReset().mockResolvedValue({ id: 19 });
   });
 
   afterEach(() => {
@@ -571,6 +577,16 @@ describe("Popup default view", () => {
     await renderPopup("text");
     expect(container.querySelector('[data-testid="tran-form"]')).not.toBeNull();
     expect(readClipboardTextIfAllowed).not.toHaveBeenCalled();
+  });
+
+  test("keeps the PDF reader entry available without a content-script response", async () => {
+    loadPopupData.mockResolvedValue(undefined);
+    await renderPopup("page");
+    expect(openPdfReader).not.toHaveBeenCalled();
+    await act(async () =>
+      container.querySelector('button[aria-label="翻译当前 PDF"]').click()
+    );
+    expect(openPdfReader).toHaveBeenCalledWith({ prefillCurrentTab: true });
   });
 
   test("temporary switching does not save or replace the configured default", async () => {

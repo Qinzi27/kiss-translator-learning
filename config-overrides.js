@@ -1,8 +1,14 @@
 const paths = require("react-scripts/config/paths");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const { WebpackManifestPlugin } = require("webpack-manifest-plugin");
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const TerserPlugin = require("terser-webpack-plugin");
+// These plugins belong to react-scripts. Resolve from its dependency graph so
+// clean pnpm installs do not rely on stale, publicly hoisted module links.
+const scriptsRequire = require("node:module").createRequire(
+  require.resolve("react-scripts/package.json")
+);
+const HtmlWebpackPlugin = scriptsRequire("html-webpack-plugin");
+const { WebpackManifestPlugin } = scriptsRequire("webpack-manifest-plugin");
+const MiniCssExtractPlugin = scriptsRequire("mini-css-extract-plugin");
+const TerserPlugin = scriptsRequire("terser-webpack-plugin");
+const PdfAssetsPlugin = require("./src/scripts/pdf-assets.cjs");
 // const webpack = require("webpack");
 
 console.log("process.env.REACT_APP_CLIENT", process.env.REACT_APP_CLIENT);
@@ -34,6 +40,7 @@ const extWebpack = (config, env) => {
   config.entry = {
     popup: paths.appSrc + "/popup.js", // 扩展弹出页面
     options: paths.appSrc + "/options.js", // 扩展设置页面
+    pdf: paths.appSrc + "/pdf.js",
     background: paths.appSrc + "/background.js", // 扩展后台常驻脚本
     content: paths.appSrc + "/content.js", // 内容注入核心脚本
     "injector-subtitle": paths.appSrc + "/injector-subtitle.js", // 字幕注入脚本
@@ -55,6 +62,14 @@ const extWebpack = (config, env) => {
 
   // 4. 重新注入为扩展程序定制的配置
   config.plugins.push(
+    new PdfAssetsPlugin(),
+    new HtmlWebpackPlugin({
+      inject: true,
+      chunks: ["pdf"],
+      template: paths.appPublic + "/pdf.html",
+      filename: "pdf.html",
+      minify,
+    }),
     // 为设置页定制生成对应的 HTML
     new HtmlWebpackPlugin({
       inject: true,
@@ -230,6 +245,7 @@ const webWebpack = (config, env) => {
     main: paths.appIndexJs,
     options: paths.appSrc + "/options.js",
     content: paths.appSrc + "/userscript.js",
+    pdf: paths.appSrc + "/pdf.js",
   };
 
   config.output.filename = "[name].js";
@@ -240,6 +256,13 @@ const webWebpack = (config, env) => {
   );
 
   config.plugins.push(
+    new PdfAssetsPlugin(),
+    new HtmlWebpackPlugin({
+      inject: true,
+      chunks: ["pdf"],
+      template: paths.appPublic + "/pdf.html",
+      filename: "pdf.html",
+    }),
     new HtmlWebpackPlugin({
       inject: true,
       chunks: ["main"],

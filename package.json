@@ -1,7 +1,7 @@
 {
   "name": "kiss-translator",
   "description": "A minimalist bilingual translation Extension & Greasemonkey Script",
-  "version": "2.0.33",
+  "version": "2.0.34",
   "author": "Gabe<yugang2002@gmail.com>",
   "private": true,
   "dependencies": {
@@ -14,14 +14,15 @@
     "@mui/material": "^5.18.0",
     "@streamparser/json": "^0.0.22",
     "dompurify": "^3.4.15",
+    "pdfjs-dist": "6.3.289",
     "postcss-selector-parser": "6.1.4",
     "query-string": "^8.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^8.0.7",
+    "react-router": "^7.18.3",
     "webdav": "^5.10.0",
-    "webextension-polyfill": "^0.10.0",
-    "react-router": "^7.18.3"
+    "webextension-polyfill": "^0.10.0"
   },
   "scripts": {
     "start": "cross-env HOST=127.0.0.1 REACT_APP_CLIENT=web react-app-rewired start",
@@ -82,6 +83,8 @@
     "bestzip": "^2.2.7",
     "cross-env": "^7.0.3",
     "dotenv": "^17.4.2",
+    "eslint": "8.57.1",
+    "eslint-config-react-app": "7.0.1",
     "find-up": "^7.0.0",
     "prettier": "3.6.2",
     "react-app-rewired": "^2.2.1",

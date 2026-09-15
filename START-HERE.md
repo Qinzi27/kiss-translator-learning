@@ -4,7 +4,7 @@
 
 ## 1. 下载并安装到 Chrome / Edge
 
-从 [GitHub 预发布 v2.0.33-learning.4](https://github.com/Qinzi27/kiss-translator-learning/releases/tag/v2.0.33-learning.4) 下载 `kiss-translator-learning-chrome.zip`。Chrome 和 Edge 使用同一安装包；如果只下载了 GitHub 的 Source code ZIP，须先按本文末尾构建，不能直接加载源码根目录。此版标为预发布，后台网页方式仍属实验性。
+本说明对应 **2.0.34-learning.5**。从 [GitHub Releases](../../releases) 选择同名预发布，下载 `kiss-translator-learning-chrome.zip`。Chrome 和 Edge 使用同一安装包；如果只下载了 GitHub 的 Source code ZIP，须先按本文末尾构建，不能直接加载源码根目录。此版标为预发布，后台网页方式仍属实验性。
 
 可选：下载同一发布页的四个附件（Chrome ZIP、对应源码 ZIP、`release-manifest.json`、`SHA256SUMS.txt`），放在同一目录核对完整性：macOS 用 `shasum -a 256 -c SHA256SUMS.txt`，Linux 用 `sha256sum -c SHA256SUMS.txt`。Windows PowerShell 用 `Get-FileHash .\kiss-translator-learning-chrome.zip -Algorithm SHA256`，将结果与校验文件中的同名条目比较；源码 ZIP 和 `release-manifest.json` 也同样核对。只下载单个 ZIP 时，可只计算该包的 SHA-256 并比对对应条目。
 
@@ -16,7 +16,19 @@
 
 这是供手动加载的学习版，不是 Chrome / Edge 商店安装包。加载后应保留原解压目录；移动或删除目录会影响扩展重新加载。只使用在线翻译不需要安装 Python、Node.js 或启动开发服务器。
 
-本地 HTML 需在扩展详情中开启「允许访问文件网址」。浏览器设置页、扩展商店等受保护页面不能作为整页翻译验收页；PDF 和其他特殊内容也不属于本学习版的已验收范围。同一页面同时运行多个整页翻译扩展可能产生重复译文。
+本地 HTML 需在扩展详情中开启「允许访问文件网址」。浏览器设置页、扩展商店等受保护页面不能作为整页翻译验收页。同一页面同时运行多个整页翻译扩展可能产生重复译文。
+
+## 直接阅读和翻译 PDF
+
+**Chrome 151+ 且官方 MIME 接口可用时：** 打开本地 PDF 或在线 PDF，地址栏保留原地址，页面直接显示本版阅读器。只接管顶层 PDF，不接管网页内嵌文档。默认仅在本机读取原文，点击 **翻译本页** 或其他翻译按钮后才调用当前服务。这个原生流入口不需要开启文件网址权限，也不需要 Python 阅读服务。
+
+页面可取消勾选 **打开 PDF 时直接使用双语阅读器**，使之后打开的 PDF 恢复浏览器默认方式；点击 **返回 Chrome 原生阅读器** 可切回当前文件。接管能力见 [Chrome 官方文档](https://developer.chrome.com/docs/extensions/reference/api/mimeHandler)。Chrome 153 已安装在开发机器上，但本版的这条 MIME 路径尚未完成真实安装环境验收；不要把下面的使用步骤当作已实测结果。
+
+**旧浏览器或关闭接管时：** 在 PDF 标签点击扩展菜单 **翻译当前 PDF**，或按 `Alt / Option + Q`，同标签读取并翻译当前页。直接读取本地 `file:///` 地址需允许扩展访问文件网址；也可从设置中的 **PDF 双语阅读** 打开阅读器，点击 **选择 PDF 并翻译** 重选该文件，无需更改权限。只想读原文时选 **打开本地 PDF**。原地址含 `#page=N` 时使用该页，否则从第一页开始；扩展不能读取原生阅读器内部滚动位置。
+
+点击 **翻译本页** 也会开启 **翻页自动翻译**，优先处理当前页并预翻译后两页，最多并发 2 个请求，会使用所选服务的额度。翻页重排待处理任务，保留已在途请求。停止、服务报错或换文件会终止该轮处理，保留已完成结果并忽略迟到回复，不会自动换平台。全文翻译会退出翻页模式，优先当前页，再处理其余页；缓存命中时跳过请求。
+
+译文采用会话内 LRU 缓存，合计最多 80 页、8 MiB。刷新后重新读取相同文件，可按相同服务配置恢复缓存，但不会自动续发请求；手选文件需重选同一文件。扩展使用 `storage.session`，浏览器会话结束清除。开发预览的 `sessionStorage` 在恢复标签时可能保留，不能视为同等生命周期保证。切换服务后旧译文仍保留，需要主动重新翻译。完整说明与验证边界见 [PDF 阅读说明](docs/PDF-READER.md)。
 
 ## 2. 先用 MyMemory 免 Key 试一句
 
@@ -87,7 +99,7 @@ Windows PowerShell 使用：
 
 ## 从源码学习和构建
 
-以下仅面向开发者。以 Node.js 20、pnpm 11 和项目锁文件为当前构建参考；依赖安装需要联网。在源码根目录运行：
+以下仅面向开发者。包含 PDF.js 的当前源码以 Node.js 24、pnpm 11 和项目锁文件为构建参考；依赖安装需要联网。在源码根目录运行：
 
 ```sh
 pnpm install --frozen-lockfile

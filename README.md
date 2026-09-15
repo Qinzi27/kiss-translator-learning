@@ -4,7 +4,7 @@
 
 在普通网页上单击悬浮翻译按钮，**保留原文，在下方追加译文；再次单击收起**。主要面向中英阅读，支持在线翻译与准备模型后的本机离线翻译。
 
-当前版本：**`2.0.33-learning.4`**。此版本包含安全修复，建议旧版用户更新并阅读 [安全与升级说明](SECURITY.md)。
+当前版本：**`2.0.34-learning.5`（预发布）**。新增 PDF 双语阅读、Chrome 151+ 官方 PDF 接管、后两页预翻译和会话缓存，延续 learning.4 的安全修复。使用前请阅读 [PDF 阅读说明](docs/PDF-READER.md)与[安全与升级说明](SECURITY.md)。
 
 这是基于 [Gabe / fishjar 及贡献者的 KISS Translator](https://github.com/fishjar/kiss-translator) 开发的独立学习分支，**不是原作者发布的官方版本**。基础版本为 2.0.32，保留上游作者信息与 [GPL-3.0 许可证](LICENSE)。
 
@@ -16,6 +16,7 @@
 | AI 翻译 | 豆包、Kimi、DeepSeek、千问、智谱、腾讯混元、硅基流动、OpenRouter 共 8 个 API 预设 | 填写自己的 Key 和已开通模型；免费、试用或收费取决于服务商与模型 |
 | 自定义 AI | OpenAI Chat Completions 兼容地址、模型、Key 和翻译偏好 | 适用于自己的远程服务或本机兼容服务 |
 | 本机离线 | Argos Translate 英中、中文双向推理 | 首次联网安装依赖和模型；之后运行本机服务 |
+| PDF 双语阅读 | Chrome 151+ 直接打开阅读器、单页 / 全文翻译、后两页预翻译、会话内恢复译文 | 默认只显示原文；基于随包提供的 Mozilla PDF.js，无 OCR 或译文 PDF 导出 |
 | 后台网页 | 豆包 / Kimi 网页方式，使用同一浏览器的登录状态 | **实验性**，需要安装扩展并手动登录；未完成真实登录会话验收 |
 
 网页翻译默认保留双语，随滚动处理后续内容。切换服务或目标语言时，先保留旧译文，成功后逐段替换；失败的段落保留旧译文。原有的划词、输入框、悬停、字幕、规则和同步等功能继续保留，但并未全部纳入本学习版验收。
@@ -31,7 +32,13 @@ AI 向导使用[固定中英翻译 Skill](TRANSLATION-SKILL.md)，可补充风�
 3. 点击「加载已解压的扩展程序」，选择解压后的 **`chrome` 文件夹**，其中应直接包含 `manifest.json`。不要直接选择 ZIP 或源码目录。
 4. 刷新一篇普通网页，单击网页边缘的翻译按钮；也可按 `Alt + Q`（Mac 为 `Option + Q`）。再次单击收起。
 
-从源码构建时，对应安装目录是 `build/chrome`。浏览器设置页、扩展商店、PDF 等特殊页面不在本次验证范围；访问本地 HTML 需要在扩展详情中允许文件网址访问。
+从源码构建时，对应安装目录是 `build/chrome`。浏览器设置页、扩展商店等受保护页面不能注入网页翻译；访问本地 HTML 需要在扩展详情中允许文件网址访问。
+
+**Chrome 151+：** 本版通过官方 `mimeHandler` 接管顶层 PDF，在原地址直接显示阅读器，不接管网页内嵌 PDF。默认只读取并显示原文，点击翻译后才向所选服务发送文字；本地文件通过浏览器提供的 PDF 流读取，无需另开文件网址权限。页面中可关闭「打开 PDF 时直接使用双语阅读器」，或点击「返回 Chrome 原生阅读器」。其他浏览器是否支持这条路径，以实际 API 可用性为准。[Chrome 官方文档](https://developer.chrome.com/docs/extensions/reference/api/mimeHandler)
+
+**旧版浏览器或关闭接管后：** 打开 PDF，再点击扩展菜单的「翻译当前 PDF」或按 `Alt / Option + Q`，进入同标签翻译。直接读取本地 `file:///` 地址仍需文件网址权限；也可在阅读器点击「选择 PDF 并翻译」重选文件，无需该权限。设置里的「PDF 双语阅读」可打开空阅读器。
+
+点击「翻译本页」或开启翻页翻译后，会优先翻译当前页并预翻译后两页，最多并发 2 个请求，消耗相应服务额度。翻页重排待处理任务，保留已在途请求；停止或换文件才取消任务并丢弃迟到结果。全文模式优先当前页，再处理其余页，命中缓存的段落不重复请求。译文会话缓存采用 LRU 淘汰，合计最多 80 页、8 MiB；同一文件和服务配置命中缓存时可恢复，刷新不会自动续发请求。手选文件刷新后需重选同一文件。扩展缓存使用 `storage.session`，浏览器会话结束清除；Web 预览使用 `sessionStorage`，浏览器恢复标签时可能保留，生命周期不同。详见 [PDF 阅读说明](docs/PDF-READER.md)。
 
 同一 Release 另附独立的 `SHA256SUMS.txt` 和 `release-manifest.json`。下载后核对安装包或源码包的 SHA-256 与校验文件一致；发布清单记录版本、源码提交及包信息。具体内容见[发布说明](RELEASE-NOTES.md)。
 
@@ -82,8 +89,10 @@ python3.12 -m venv .offline/venv
 | 8 家 AI API | 官方资料核对、请求与解析测试、配置向导测试 | 未使用用户 Key 实调这 8 家云模型 |
 | 豆包 / Kimi 网页 | DOM 夹具、后台消息、队列、取消和任务标记测试 | 当前官网的真实登录会话兼容性 |
 | Chrome / Edge 交付 | Chrome 生产包构建成功，供两者开发者模式加载 | 最终包尚未在真实扩展环境安装验收；其他浏览器未验收 |
+| PDF 既有 Web 验证 | 真实 8 页论文解析、原稿绘制；屏蔽谷歌模式下 MyMemory 第一页 32 段翻译；后续自编三页 PDF 翻页与停止 | 全文 200 段未完整调用；本轮未实测 Argos PDF 翻译 |
+| learning.5 PDF 新路径 | 官方接口核对、合成测试与构建检查，结果见验证记录 | 已安装的 Chrome 153 中，MIME 接管、预翻译与会话恢复完整流程尚未实机验收 |
 
-MyMemory 适配器测试 39 项通过，关联回归 7 套 221 项通过；学习版 2 的 AI 与关联回归曾有 26 套 561 项通过。这些是不同轮次的记录，不应相加当成一次全仓测试。
+MyMemory 适配器测试 39 项通过，关联回归 7 套 221 项通过；学习版 2 的 AI 与关联回归曾有 26 套 561 项通过。这些是不同轮次的记录，不应相加当成一次全仓测试，也不能代替 learning.5 新路径的安装验收。私人 PDF 不作为公开发布附件或测试样本。
 
 - [MyMemory 真实请求回执](validation/free-api-live.json)
 - [Argos 断网推理回执](offline/verified-offline.json)与[模型来源、版本和校验值](offline/model-receipt.json)
@@ -93,7 +102,7 @@ MyMemory 适配器测试 39 项通过，关联回归 7 套 221 项通过；学�
 
 ## 从源码构建与学习
 
-克隆本仓库或解压 `kiss-translator-learning-source.zip` 后，在包含 `package.json` 的目录运行。现有构建已在 Node.js 20 / pnpm 11 环境验证；首次安装需要联网。
+克隆本仓库或解压 `kiss-translator-learning-source.zip` 后，在包含 `package.json` 的目录运行。包含 PDF.js 的当前源码使用 **Node.js 24 / pnpm 11**；首次安装需要联网。learning.4 及更早发布包不包含本版 PDF 阅读器。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -114,7 +123,7 @@ python3 src/scripts/package-learning.py
 HOST=127.0.0.1 PORT=4318 BROWSER=none pnpm start
 ```
 
-打开 `http://127.0.0.1:4318/content.html` 查看网页翻译，或 `http://127.0.0.1:4318/options.html#/ai-services` 查看向导。Web 开发预览不能替代扩展环境验收。
+打开 `http://127.0.0.1:4318/content.html` 查看网页翻译，`http://127.0.0.1:4318/options.html#/ai-services` 查看向导，或 `http://127.0.0.1:4318/pdf.html` 使用 PDF 阅读器。Web 预览读取远程 PDF 受 CORS 限制，失败时选择已下载的本地文件。Web 开发预览不能替代扩展环境验收。
 
 MyMemory 与关联功能的定向测试：
 
@@ -129,6 +138,7 @@ CI=true node_modules/.bin/react-app-rewired test --watchAll=false --runInBand --
 ## 文档与来源
 
 - [START-HERE.md](START-HERE.md)：安装、切换服务、离线准备与常见问题。
+- [docs/PDF-READER.md](docs/PDF-READER.md)：PDF 接管、预翻译与会话缓存、在线与离线翻译、开源组件与限制。
 - [AI-SERVICES.md](AI-SERVICES.md)：免 Key 试用、8 个 AI 预设、自定义 API、后台网页与计费边界。
 - [TRANSLATION-SKILL.md](TRANSLATION-SKILL.md)：固定翻译指令、偏好与限制。
 - [SECURITY.md](SECURITY.md)：安全修复、密钥处理、升级兼容性与报告方式。
