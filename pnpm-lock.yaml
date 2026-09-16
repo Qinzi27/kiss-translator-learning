@@ -123,6 +123,9 @@ importers:
       react-scripts:
         specifier: 5.0.1
         version: 5.0.1(@babel/plugin-syntax-flow@7.29.7(@babel/core@7.29.7(supports-color@8.1.1)))(@babel/plugin-transform-react-jsx@7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/babel__core@7.20.5)(clean-css@5.3.3)(cssnano@5.1.15(postcss@8.5.28))(csso@5.0.5)(debug@4.4.3(supports-color@8.1.1))(eslint@8.57.1(supports-color@8.1.1))(html-minifier-terser@6.1.0)(react@18.3.1)(supports-color@8.1.1)(svgo@3.3.5)(type-fest@0.21.3)(typescript@4.9.5)
+      typescript:
+        specifier: 4.9.5
+        version: 4.9.5
       zx:
         specifier: ^8.8.5
         version: 8.8.5

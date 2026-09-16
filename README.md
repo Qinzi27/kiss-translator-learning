@@ -128,6 +128,7 @@ MyMemory 适配器测试 39 项通过，关联回归 7 套 221 项通过；学�
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm typecheck
 pnpm build:chrome
 ```
 
@@ -157,6 +158,8 @@ CI=true node_modules/.bin/react-app-rewired test --watchAll=false --runInBand --
 
 建议从 [悬浮按钮](src/views/Action/ContentFab.js)、[整页翻译调度](src/libs/translatorManager.js)、[段落处理](src/libs/translator.js)、[服务请求](src/apis/trans.js)和 [MyMemory 适配器](src/apis/myMemory.js)开始阅读。
 
+源码开始逐步迁移 TypeScript：第一批仅覆盖翻译进度与按钮配色，继续运行原有 JavaScript 验证。启动诊断的复现方法、体积前后对照、类型检查范围和下一轮拆分候选见 [渐进迁移记录](docs/MIGRATION.md)。
+
 ## 文档与来源
 
 - [START-HERE.md](START-HERE.md)：安装、切换服务、离线准备与常见问题。
@@ -166,6 +169,7 @@ CI=true node_modules/.bin/react-app-rewired test --watchAll=false --runInBand --
 - [TRANSLATION-SKILL.md](TRANSLATION-SKILL.md)：固定翻译指令、偏好与限制。
 - [SECURITY.md](SECURITY.md)：安全修复、密钥处理、升级兼容性与报告方式。
 - [VALIDATION.md](VALIDATION.md)：测试证据、实际返回、验证边界及复现命令。
+- [docs/MIGRATION.md](docs/MIGRATION.md)：TypeScript 渐进迁移、启动测量及每轮工程决策。
 - [offline/README.md](offline/README.md)：Argos 模型准备、本机服务与离线验证。
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)：安装、请求失败及常见故障排查。
 - [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)：学习版版本、打包与发布流程。

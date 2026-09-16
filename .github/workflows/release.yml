@@ -21,6 +21,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check migrated TypeScript and compile-only contracts
+        run: pnpm typecheck
       - name: Test translation and security regressions
         env:
           CI: true
@@ -32,6 +34,10 @@ jobs:
       - name: Audit locked dependencies
         run: pnpm audit --audit-level high
       - run: pnpm build:chrome
+      - name: Record static build baseline (not browser startup timing)
+        run: |
+          mkdir -p releases
+          pnpm measure:build --build-dir build/chrome --output releases/build-metrics.json
       - run: python3 src/scripts/package-learning.py
       - uses: actions/upload-artifact@v4
         with:

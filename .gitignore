@@ -18,6 +18,7 @@ __pycache__/
 
 # production
 /build
+/build-metrics.json
 
 # misc
 .DS_Store

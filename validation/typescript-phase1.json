@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-09-16",
+  "baseCommit": "7b4b9b831a8051206b4b14339f8fe8ff33a31eab",
+  "branch": "codex/typescript-migration-phase1",
+  "candidateIsUnreleasedDevelopment": true,
+  "baselineMatchesRetainedPublicArchive": true,
+  "baseline": {
+    "measurement": "static-build-artifact-size-not-startup-time",
+    "method": {
+      "gzip": "sum of individually compressed files, gzip level 9",
+      "dependencyScope": "manifest entries, HTML script/stylesheet/modulepreload references, and every asset-manifest file",
+      "limitations": "Does not execute bundles, inspect dynamically constructed URLs, measure browser startup, or prove runtime behavior."
+    },
+    "manifest": {
+      "manifestVersion": 3,
+      "version": "2.0.37",
+      "versionName": "2.0.37-learning.8"
+    },
+    "integrity": {
+      "declaredDependenciesComplete": true,
+      "assetManifestFileCount": 213
+    },
+    "entries": {
+      "content": {
+        "fileCount": 1,
+        "rawBytes": 2020315,
+        "gzipBytes": 565307,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "content.js",
+            "rawBytes": 2020315,
+            "gzipBytes": 565307,
+            "sha256": "b0e2951b0f35f4ea36ccc36052f847f520bb4dbc94d3aa1f77b27004e366eea1"
+          }
+        ]
+      },
+      "background": {
+        "fileCount": 1,
+        "rawBytes": 830227,
+        "gzipBytes": 218886,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "background.js",
+            "rawBytes": 830227,
+            "gzipBytes": 218886,
+            "sha256": "12f7c2d4c3bea18f1c2d2131d724fcaf94a42072f6b4c17d5eee8d44b7b888ea"
+          }
+        ]
+      },
+      "options": {
+        "fileCount": 3,
+        "rawBytes": 2140777,
+        "gzipBytes": 591570,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "css/options.css",
+            "rawBytes": 3413,
+            "gzipBytes": 1110,
+            "sha256": "7330a4363a3d313152f938a72e0c5de7e573b3db365f78cb491ae287d147e333"
+          },
+          {
+            "path": "options.html",
+            "rawBytes": 2654,
+            "gzipBytes": 888,
+            "sha256": "439dcfb278128801ac9afb2d33f2bb2d6eb04bc53ff8222ad682c450ecc17c04"
+          },
+          {
+            "path": "options.js",
+            "rawBytes": 2134710,
+            "gzipBytes": 589572,
+            "sha256": "c02b3d745ec0fa5039f5a680a7ae317d56e266de9f01e16ddd0c44d6a30086e3"
+          }
+        ]
+      },
+      "pdf": {
+        "fileCount": 3,
+        "rawBytes": 882367,
+        "gzipBytes": 238447,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "css/pdf.css",
+            "rawBytes": 9227,
+            "gzipBytes": 2667,
+            "sha256": "b971f30e596ce6d720224665f3e4b8289bb4b2b47f5d5fa630d2cdb624134140"
+          },
+          {
+            "path": "pdf.html",
+            "rawBytes": 505,
+            "gzipBytes": 352,
+            "sha256": "413fc608366e40527123fe32cd5d286256912e2796bd759736a98a0f65b1f60e"
+          },
+          {
+            "path": "pdf.js",
+            "rawBytes": 872635,
+            "gzipBytes": 235428,
+            "sha256": "bb34b666b242c748bdf9c0897acb683eb14e63e6fe9fdcc50bd9de95029441d3"
+          }
+        ]
+      }
+    },
+    "totals": {
+      "javascript": {
+        "fileCount": 11,
+        "rawBytes": 11461020,
+        "gzipBytes": 2929372
+      },
+      "build": {
+        "fileCount": 268,
+        "rawBytes": 14067162,
+        "gzipBytes": 4714690
+      }
+    }
+  },
+  "candidate": {
+    "measurement": "static-build-artifact-size-not-startup-time",
+    "method": {
+      "gzip": "sum of individually compressed files, gzip level 9",
+      "dependencyScope": "manifest entries, HTML script/stylesheet/modulepreload references, and every asset-manifest file",
+      "limitations": "Does not execute bundles, inspect dynamically constructed URLs, measure browser startup, or prove runtime behavior."
+    },
+    "manifest": {
+      "manifestVersion": 3,
+      "version": "2.0.37",
+      "versionName": "2.0.37-learning.8"
+    },
+    "integrity": {
+      "declaredDependenciesComplete": true,
+      "assetManifestFileCount": 213
+    },
+    "entries": {
+      "content": {
+        "fileCount": 1,
+        "rawBytes": 2021435,
+        "gzipBytes": 565612,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "content.js",
+            "rawBytes": 2021435,
+            "gzipBytes": 565612,
+            "sha256": "1aad0cb7a0b84be186c9e400d112965be2bdb03b2abfc67160d4fd38c3360fdc"
+          }
+        ]
+      },
+      "background": {
+        "fileCount": 1,
+        "rawBytes": 830227,
+        "gzipBytes": 218886,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "background.js",
+            "rawBytes": 830227,
+            "gzipBytes": 218886,
+            "sha256": "12f7c2d4c3bea18f1c2d2131d724fcaf94a42072f6b4c17d5eee8d44b7b888ea"
+          }
+        ]
+      },
+      "options": {
+        "fileCount": 3,
+        "rawBytes": 2140810,
+        "gzipBytes": 591586,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "css/options.css",
+            "rawBytes": 3413,
+            "gzipBytes": 1110,
+            "sha256": "7330a4363a3d313152f938a72e0c5de7e573b3db365f78cb491ae287d147e333"
+          },
+          {
+            "path": "options.html",
+            "rawBytes": 2654,
+            "gzipBytes": 888,
+            "sha256": "439dcfb278128801ac9afb2d33f2bb2d6eb04bc53ff8222ad682c450ecc17c04"
+          },
+          {
+            "path": "options.js",
+            "rawBytes": 2134743,
+            "gzipBytes": 589588,
+            "sha256": "d8147512bbc047007733c44079fb1d75912936cd7f1a1c94bbdf5d43bdd21970"
+          }
+        ]
+      },
+      "pdf": {
+        "fileCount": 3,
+        "rawBytes": 882400,
+        "gzipBytes": 238458,
+        "declaredDependenciesComplete": true,
+        "files": [
+          {
+            "path": "css/pdf.css",
+            "rawBytes": 9227,
+            "gzipBytes": 2667,
+            "sha256": "b971f30e596ce6d720224665f3e4b8289bb4b2b47f5d5fa630d2cdb624134140"
+          },
+          {
+            "path": "pdf.html",
+            "rawBytes": 505,
+            "gzipBytes": 352,
+            "sha256": "413fc608366e40527123fe32cd5d286256912e2796bd759736a98a0f65b1f60e"
+          },
+          {
+            "path": "pdf.js",
+            "rawBytes": 872668,
+            "gzipBytes": 235439,
+            "sha256": "f20506e34859b9080df8b81a52044866c5a89f28889e29b481c8980d18c88de6"
+          }
+        ]
+      }
+    },
+    "totals": {
+      "javascript": {
+        "fileCount": 11,
+        "rawBytes": 11462206,
+        "gzipBytes": 2929704
+      },
+      "build": {
+        "fileCount": 268,
+        "rawBytes": 14068348,
+        "gzipBytes": 4715022
+      }
+    }
+  },
+  "candidateSourceSha256": {
+    "src/common.js": "fb292895b81d777c1805d66ea554971a74b84ea3dfb5db3a8dcf23d6cd089b24",
+    "src/libs/startupProfile.js": "d6e9d92c2e2208da6d33e940ba178c8a49f01094d11cacc548e05d1932bd1a15",
+    "src/libs/translationProgress.ts": "8584d8c2ba5a11ab0703e96b9d91efa950e5d09e1d7fd1be52db98f43d298a8e",
+    "src/libs/fabAppearance.ts": "0f5733e7be17a2c18afae7a1d1bcc5f21a7ae276d03129ba1528ce82ac444e37",
+    "src/libs/translatorManager.js": "6519263d21b4cfef41ae74d92e561540089aa6845890de414c16cb9c610a16e8",
+    "src/libs/fabManager.js": "25837c2ea5baa364efc0e7cb931cfeb9a44737b9d286ccb876162816a05b2fc4",
+    "src/views/Action/ContentFab.js": "d9b11910ddf2598a7e1ca3e6579170eb73f4f0cbc358e0a70eb0e9df538090d4",
+    "tsconfig.json": "513aba74389e1e61dfba0262431bf44b498c6595d32b16a9695d2dd6b9dd09a3",
+    "package.json": "22614140b7c7aee80269ea2e7d4bf6fe177b52b6d953210d22a14b0a4a69f206",
+    "pnpm-lock.yaml": "460158ee66c6d30a44ee7b98df30d851918ae400b080c8ce3f7402f72d98e9f9"
+  },
+  "webPreview": {
+    "environment": "Codex in-app browser, local React development preview, profiling enabled",
+    "fixture": "public/content.html",
+    "translationLocked": false,
+    "translationStarted": false,
+    "samples": "three consecutive full reloads, warm local browser profile; durations rounded to 0.1ms",
+    "durationUnit": "ms",
+    "values": [
+      {
+        "migration": 0.2,
+        "settings": 0.2,
+        "rules": 0.1,
+        "words": 0.1,
+        "fab-settings": 0,
+        "manager": 3.9,
+        "total:ready": 5.0,
+        "fab-commit": 19.8
+      },
+      {
+        "migration": 0.2,
+        "settings": 0.2,
+        "rules": 0,
+        "words": 0,
+        "fab-settings": 0.1,
+        "manager": 3.9,
+        "total:ready": 4.7,
+        "fab-commit": 19.4
+      },
+      {
+        "migration": 0.2,
+        "settings": 0.1,
+        "rules": 0.1,
+        "words": 0,
+        "fab-settings": 0,
+        "manager": 4.9,
+        "total:ready": 5.8,
+        "fab-commit": 27.4
+      }
+    ],
+    "limitations": [
+      "Timing begins inside common.run after static imports.",
+      "Bundle loading/parsing/evaluation and browser injection delay excluded.",
+      "FAB layout commit is not browser paint or translation completion.",
+      "Diagnostic overhead included; not installed Chrome extension or cold startup.",
+      "No before-migration timing comparison; no speedup claim."
+    ]
+  },
+  "validation": {
+    "javascriptSuites": 183,
+    "javascriptTests": 2973,
+    "finalProfileGateSuites": 2,
+    "finalProfileGateTests": 42,
+    "typecheck": "passed; migrated modules and compile-only contracts, JavaScript unchecked",
+    "offlineSyntheticTests": 29,
+    "updaterSyntheticTests": 30,
+    "chromeProductionBuild": "passed",
+    "normalBuildDiagnosticMarkers": "absent",
+    "liveTranslationApisRerun": false,
+    "realOfflineModelRerun": false,
+    "installedChromeValidation": false,
+    "offlineFrozenLockfileInstall": "passed using existing cache",
+    "packageFixture": "typed source and contracts included; no TS runtime files; retained release artifacts unchanged"
+  }
+}

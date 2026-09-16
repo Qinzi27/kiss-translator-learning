@@ -104,3 +104,7 @@ The offline policy restricts the extension's built-in request layer. It does not
 - [Upstream base commit](https://github.com/fishjar/kiss-translator/commit/2656f564dde5b271a8d3fb31e951a8457e8df41c) and [its original README](https://github.com/fishjar/kiss-translator/blob/2656f564dde5b271a8d3fb31e951a8457e8df41c/README.md).
 
 Learning-edition changes remain under [GPL-3.0](LICENSE). Releases provide the corresponding source and license. The source ZIP excludes Git history, account configuration, dependency folders and downloaded models. Please report learning-edition issues to this repository.
+
+## Gradual TypeScript migration
+
+The first development milestone migrates translation progress and floating-button colors while preserving the existing JavaScript tests. Strict type contracts, an opt-in local startup probe, and a read-only build-size report are added. See the [migration record](docs/MIGRATION.md) and [measurement receipt](validation/typescript-phase1.json) for reproducible checks and limits; this milestone does not claim a loading-speed improvement.

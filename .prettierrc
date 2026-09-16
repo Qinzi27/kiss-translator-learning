@@ -19,5 +19,8 @@
   "embeddedLanguageFormatting": "auto",
   "vueIndentScriptAndStyle": false,
   "experimentalTernaries": false,
-  "parser": "babel"
+  "parser": "babel",
+  "overrides": [
+    { "files": ["*.ts", "*.tsx"], "options": { "parser": "typescript" } }
+  ]
 }

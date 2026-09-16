@@ -23,6 +23,7 @@ export class FabManager extends ShadowDomManager {
     fabConfig,
     getSelectionEnabled,
     translationProgress,
+    onStartupCommit,
   }) {
     let config = Object.freeze({ ...DEFAULT_FAB, ...fabConfig });
     const listeners = new Set();
@@ -43,6 +44,7 @@ export class FabManager extends ShadowDomManager {
         getSelectionEnabled,
         translationProgress,
         configStore,
+        ...(onStartupCommit && { onStartupCommit }),
       },
     });
     this.#configStore = configStore;

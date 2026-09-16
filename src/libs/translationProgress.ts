@@ -1,16 +1,57 @@
 // Per-Translator state. This store never uses page-controlled DOM events and
 // contains no source text, settings, URLs or provider errors.
-export const IDLE_TRANSLATION_PROGRESS = Object.freeze({
-  phase: "idle",
-  enabled: false,
-  queued: 0,
-  active: 0,
-  completed: 0,
-});
-export const isTranslationBusy = ({ phase }) =>
+export type TranslationPhase =
+  | "idle"
+  | "preparing"
+  | "queued"
+  | "translating"
+  | "done"
+  | "error"
+  | "stopped";
+
+export interface TranslationProgressSnapshot {
+  readonly phase: TranslationPhase;
+  readonly enabled: boolean;
+  readonly queued: number;
+  readonly active: number;
+  readonly completed: number;
+}
+
+export type TranslationTaskOutcome = "success" | "error" | "cancelled";
+export type FinishTranslationTask = (outcome?: TranslationTaskOutcome) => void;
+export type TranslationProgressListener = () => void;
+
+// Consumers can observe progress, but only the owning Translator can change it.
+export interface TranslationProgressStore {
+  readonly getSnapshot: () => TranslationProgressSnapshot;
+  readonly subscribe: (listener: TranslationProgressListener) => () => void;
+}
+
+export interface TranslationProgressController {
+  readonly readonly: TranslationProgressStore;
+  start(nextEnabled?: boolean): void;
+  stop(): void;
+  task(): FinishTranslationTask;
+  request(): FinishTranslationTask;
+  error(): void;
+}
+
+export const IDLE_TRANSLATION_PROGRESS: TranslationProgressSnapshot =
+  Object.freeze({
+    phase: "idle",
+    enabled: false,
+    queued: 0,
+    active: 0,
+    completed: 0,
+  });
+export const isTranslationBusy = ({
+  phase,
+}: Pick<TranslationProgressSnapshot, "phase">): boolean =>
   ["preparing", "queued", "translating"].includes(phase);
 
-export function translationProgressLabel(state) {
+export function translationProgressLabel(
+  state: TranslationProgressSnapshot
+): string {
   switch (state.phase) {
     case "preparing":
       return "正在准备翻译，查找可译内容";
@@ -31,22 +72,22 @@ export function translationProgressLabel(state) {
   }
 }
 
-export function createTranslationProgress() {
+export function createTranslationProgress(): TranslationProgressController {
   let generation = 0;
   let enabled = false;
   let preparing = false;
   let stopped = false;
   let failed = false;
   let completed = 0;
-  let prepareTimer;
+  let prepareTimer: ReturnType<typeof setTimeout> | undefined;
   let snapshot = IDLE_TRANSLATION_PROGRESS;
-  const tasks = new Set();
-  const requests = new Set();
-  const listeners = new Set();
+  const tasks = new Set<object>();
+  const requests = new Set<object>();
+  const listeners = new Set<TranslationProgressListener>();
   const publish = () => {
     const active = requests.size;
     const queued = Math.max(0, tasks.size - active);
-    const phase = !enabled
+    const phase: TranslationPhase = !enabled
       ? stopped
         ? "stopped"
         : "idle"
@@ -59,12 +100,24 @@ export function createTranslationProgress() {
             : failed
               ? "error"
               : "done";
-    const next = { phase, enabled, queued, active, completed };
-    if (Object.keys(next).every((key) => next[key] === snapshot[key])) return;
+    const next: TranslationProgressSnapshot = {
+      phase,
+      enabled,
+      queued,
+      active,
+      completed,
+    };
+    // These keys come only from the snapshot literal above, never external data.
+    if (
+      (Object.keys(next) as (keyof TranslationProgressSnapshot)[]).every(
+        (key) => next[key] === snapshot[key]
+      )
+    )
+      return;
     snapshot = Object.freeze(next);
     listeners.forEach((listener) => listener());
   };
-  const reset = (nextEnabled, wasStopped) => {
+  const reset = (nextEnabled: boolean, wasStopped: boolean) => {
     generation++;
     clearTimeout(prepareTimer);
     tasks.clear();
@@ -86,7 +139,7 @@ export function createTranslationProgress() {
       }, 150);
     }
   };
-  const add = (set, isRequest) => {
+  const add = (set: Set<object>, isRequest: boolean): FinishTranslationTask => {
     if (!enabled) return () => {};
     if (snapshot.phase === "error") failed = false;
     const current = generation;
@@ -104,7 +157,7 @@ export function createTranslationProgress() {
   return {
     readonly: Object.freeze({
       getSnapshot: () => snapshot,
-      subscribe: (listener) => {
+      subscribe: (listener: TranslationProgressListener) => {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },

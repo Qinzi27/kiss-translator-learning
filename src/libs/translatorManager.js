@@ -119,6 +119,7 @@ export default class TranslatorManager {
   #lockPending = 0;
   #lockWriteRevision = 0;
   #lockQueue = Promise.resolve();
+  #onStartupCommit;
 
   // 初始配置快照。restart 会用运行期状态刷新这些快照，再重建子模块。
   #setting;
@@ -170,7 +171,9 @@ export default class TranslatorManager {
     isIframe,
     isUserscript,
     transboxOnly = false,
+    onStartupCommit,
   }) {
+    this.#onStartupCommit = onStartupCommit;
     this.#setting = this.#cloneConfig(setting);
     this.#rule = this.#cloneConfig(rule);
     this.#fabConfig = this.#cloneConfig(fabConfig);
@@ -352,6 +355,9 @@ export default class TranslatorManager {
         },
       });
       this._fabManager = new FabManager({
+        ...(this.#onStartupCommit && {
+          onStartupCommit: this.#onStartupCommit,
+        }),
         processActions: this.#processActions.bind(this),
         fabConfig: this.#cloneConfig(this.#fabConfig),
         translationProgress: this._translator.translationProgress,

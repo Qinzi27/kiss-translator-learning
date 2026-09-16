@@ -41,11 +41,13 @@
     "build:safari": "node src/scripts/build-safari.mjs",
     "build:userscript-ios": "zx src/scripts/build-ios.mjs",
     "build:rules": "babel-node src/rules.js",
-    "format": "prettier --write \"**/*.{js,json,html}\"",
+    "format": "prettier --write \"**/*.{js,ts,tsx,json,html}\"",
     "build": "pnpm sync-version && pnpm format && pnpm build:chrome && pnpm build:edge && pnpm build:thunderbird && pnpm build:firefox && pnpm build:web && pnpm build:userscript-ios && pnpm build:rules",
     "zip": "zx src/scripts/archive.mjs",
     "build+zip": "cross-env CI=true pnpm build && pnpm zip",
     "test": "react-app-rewired test",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "measure:build": "node src/scripts/measure-build.cjs",
     "test:subtitle-segmentation": "babel-node src/scripts/test-subtitle-segmentation.js",
     "eject": "react-scripts eject"
   },
@@ -89,6 +91,7 @@
     "prettier": "3.6.2",
     "react-app-rewired": "^2.2.1",
     "react-scripts": "5.0.1",
+    "typescript": "4.9.5",
     "zx": "^8.8.5"
   },
   "pnpm": {

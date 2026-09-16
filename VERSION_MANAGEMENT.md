@@ -13,6 +13,7 @@
 
    ```sh
    pnpm install --frozen-lockfile
+   pnpm typecheck
    pnpm build:chrome
    python3 src/scripts/package-learning.py
    ```
@@ -27,6 +28,8 @@
 
 ## GitHub Actions
 
-`.github/workflows/release.yml` 已改为手动运行的 **Build learning edition**：运行全套 JavaScript 回归、离线服务合成测试和依赖审计，构建 Chrome、生成 ZIP 和校验文件并保存构建产物。它不会在标签推送后自动发布 Release 或部署 Pages；首次 fork 后可在 Actions 页面按需启用并运行。
+`.github/workflows/release.yml` 为手动运行的 **Build learning edition**：检查已迁移 TypeScript 和编译期契约，运行全套 JavaScript 回归、离线服务及更新器合成测试和依赖审计，构建 Chrome、记录静态体积、生成 ZIP 和校验文件并保存构建产物。它不会在标签推送后自动发布 Release 或部署 Pages；首次 fork 后可在 Actions 页面按需启用并运行。
+
+渐进迁移的开发提交先沿用基础版本元数据，不可用它覆盖已有 Release。正式发布前仍须提升版本、重新构建并核验对应源码。诊断开关 `REACT_APP_STARTUP_PROFILE` 在发布构建中应保持未设置；类型源文件 `.ts`/`.tsx` 随源码包提供，不作为浏览器可执行文件发布。迁移记录见 [docs/MIGRATION.md](docs/MIGRATION.md)。
 
 上游的全平台构建脚本与发布技能仍保留供学习，其 `dev → master` 发版规则不作为本学习分支的默认流程。其他平台的产物不属于本次发布验收范围。

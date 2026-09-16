@@ -37,7 +37,7 @@ EXCLUDED_DIRECTORIES = {
 }
 SUPPLEMENT_EXTENSIONS = {
     ".md", ".rst", ".txt", ".json", ".jsonl", ".csv", ".yaml", ".yml",
-    ".toml", ".py", ".js", ".mjs", ".cjs", ".sh", ".sb", ".ps1", ".bat", ".cmd",
+    ".toml", ".py", ".js", ".ts", ".tsx", ".mjs", ".cjs", ".sh", ".sb", ".ps1", ".bat", ".cmd",
 }
 MAX_SUPPLEMENT_BYTES = 1024 * 1024
 

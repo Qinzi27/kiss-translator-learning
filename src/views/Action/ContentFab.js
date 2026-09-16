@@ -30,6 +30,7 @@ import {
   useMemo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useSyncExternalStore,
 } from "react";
@@ -104,7 +105,11 @@ export function ContentFabContent({
   translationProgress,
   processActions,
   getSelectionEnabled = selectionUnavailable,
+  onStartupCommit,
 }) {
+  useLayoutEffect(() => {
+    onStartupCommit?.();
+  }, [onStartupCommit]);
   const i18n = useI18n();
   const initialConfig = useCallback(() => fabConfig, [fabConfig]);
   const config = useSyncExternalStore(

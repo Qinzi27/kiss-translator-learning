@@ -12,6 +12,7 @@ import { isInBlacklist } from "./libs/blacklist";
 import { runSubtitle } from "./subtitle/subtitle";
 import { logger } from "./libs/log";
 import TranslatorManager from "./libs/translatorManager";
+import { beginStartupProfile } from "./libs/startupProfile";
 
 /**
  * External userscript settings pages cannot be trusted with GM privileges.
@@ -221,6 +222,13 @@ async function waitForIframeTranslatableText() {
  * @param {boolean} isUserscript 是否作为油猴 Userscript 脚本模式运行 (false 代表作为浏览器 Extension 运行)
  */
 export async function run(isUserscript = false) {
+  // Keep the opt-in visible at the call site so production minification can
+  // remove the stage probes, not merely the implementation of the recorder.
+  const startupProfile =
+    process.env.REACT_APP_STARTUP_PROFILE === "true"
+      ? beginStartupProfile()
+      : undefined;
+  let startupOutcome = "skipped";
   try {
     const initialHref = document?.location?.href || "";
 
@@ -234,12 +242,16 @@ export async function run(isUserscript = false) {
       }
 
       // 0. 执行核心数据迁移 (针对油猴等无后台更新事件的场景)
+      const migrationDone = startupProfile?.step("migration");
       const { runDataMigration } = await import("./libs/storage");
       await runDataMigration();
+      migrationDone?.();
     }
 
     // 1. 加载本地设置
+    const settingsDone = startupProfile?.step("settings");
     const initialSetting = await getSettingWithDefault();
+    settingsDone?.();
 
     // 2. 初始化全局日志配置
     logger.setLevel(initialSetting.logLevel);
@@ -281,7 +293,9 @@ export async function run(isUserscript = false) {
 
       // 5.1. iframe 空内容拦截：默认允许 iframe 翻译，但空 iframe 不继续挂载后续脚本
       if (isIframe) {
+        const iframeDone = startupProfile?.step("iframe-ready");
         const hasText = await waitForIframeTranslatableText();
+        iframeDone?.();
         if (pageChanged()) continue;
         if (!hasText) return;
       }
@@ -300,11 +314,17 @@ export async function run(isUserscript = false) {
       }
 
       // 7. 匹配当前网页专用的规则 (三级规则合并：个人 > 订阅 > 内置全局)
+      const rulesDone = startupProfile?.step("rules");
       const rule = { ...(await matchRule(href, setting)) };
+      rulesDone?.();
       if (pageChanged()) continue;
+      const wordsDone = startupProfile?.step("words");
       const favWords = await getFavWords(rule);
+      wordsDone?.();
       if (pageChanged()) continue;
+      const fabDone = startupProfile?.step("fab-settings");
       const fabConfig = { ...(await getFabWithDefault()) };
+      fabDone?.();
       // No await between this final URL check and constructing/starting the manager.
       if (pageChanged()) continue;
       // Each new document starts fresh. A legacy/subscribed rule cannot grant
@@ -324,6 +344,7 @@ export async function run(isUserscript = false) {
       }
 
       // 8. 创建翻译调度器管理器并启动
+      const managerDone = startupProfile?.step("manager");
       const translatorManager = new TranslatorManager({
         setting,
         rule,
@@ -332,8 +353,11 @@ export async function run(isUserscript = false) {
         isIframe,
         isUserscript,
         transboxOnly: isPdfDocument,
+        ...(startupProfile && { onStartupCommit: startupProfile.fabCommitted }),
       });
       translatorManager.start();
+      managerDone?.();
+      startupOutcome = "ready";
 
       // 9. 若当前页面是嵌套的 iframe，不进行视频字幕翻译，避免多个 iframe 里重复跑字幕服务造成冲突
       if (isIframe || isPdfDocument) {
@@ -353,7 +377,10 @@ export async function run(isUserscript = false) {
       "Page kept navigating during initialization; automatic startup was skipped."
     );
   } catch (err) {
+    startupOutcome = "error";
     console.error("[KISS-Translator]", err);
     showErr(err.message); // 向前台页面绘制报错 Banner，便于用户感知与排查问题
+  } finally {
+    startupProfile?.finish(startupOutcome);
   }
 }
