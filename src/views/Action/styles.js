@@ -46,6 +46,8 @@ export const ACTION_STYLES = String.raw`
 .kt-content-fab-menu__item svg { width: 19px; height: 19px; }
 
 .kt-content-fab-progress-ring { position: absolute; inset: 4px; border: 2px solid currentColor; border-left-color: transparent; border-right-color: transparent; border-radius: 50%; pointer-events: none; animation: kt-fab-progress-spin 1s linear infinite; }
+.kt-content-fab-lock { position: absolute; top: -3px; right: -3px; display: grid; place-items: center; width: 21px; height: 21px; border: 2px solid var(--kt-fab-fill, var(--kt-pric)); border-radius: 50%; background: var(--kt-fab-ink, var(--kt-onpric)); color: var(--kt-fab-fill, var(--kt-pric)); pointer-events: none; }
+.kt-content-fab-lock svg { width: 13px; height: 13px; }
 .kt-content-fab[data-translation-state="error"] { outline: 3px solid currentColor; outline-offset: 2px; }
 .kt-content-fab-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; pointer-events: none; }
 @keyframes kt-fab-progress-spin { to { transform: rotate(360deg); } }

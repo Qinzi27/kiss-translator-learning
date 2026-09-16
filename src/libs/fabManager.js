@@ -11,6 +11,7 @@ import { isExt } from "./client";
 export class FabManager extends ShadowDomManager {
   #removeConfigListener = null;
   #configStore;
+  #publishConfig;
   /**
    * 构造函数
    * @param {object} params
@@ -45,6 +46,10 @@ export class FabManager extends ShadowDomManager {
       },
     });
     this.#configStore = configStore;
+    this.#publishConfig = (patch) => {
+      config = Object.freeze({ ...config, ...patch });
+      listeners.forEach((listener) => listener());
+    };
     if (isExt && browser?.storage?.onChanged) {
       const onChanged = (changes, area) => {
         if (
@@ -60,7 +65,12 @@ export class FabManager extends ShadowDomManager {
         }
         if (next != null && (typeof next !== "object" || Array.isArray(next)))
           return;
-        config = Object.freeze({ ...DEFAULT_FAB, ...next });
+        config = Object.freeze({
+          ...DEFAULT_FAB,
+          ...next,
+          translationLocked: config.translationLocked === true,
+          translationLockError: config.translationLockError || "",
+        });
         listeners.forEach((listener) => listener());
         config.isHide ? this.hide() : this.show();
       };
@@ -75,6 +85,13 @@ export class FabManager extends ShadowDomManager {
     if (!fabConfig?.isHide) {
       this.show();
     }
+  }
+
+  setTranslationLock(enabled, error = "") {
+    this.#publishConfig({
+      translationLocked: enabled === true,
+      translationLockError: error,
+    });
   }
 
   getConfig() {

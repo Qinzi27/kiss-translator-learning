@@ -23,6 +23,8 @@ export const STOKEY_RULES = `${APP_NAME}_rules_v${APP_VERSION[0]}`; // 当前大
 export const STOKEY_WORDS = `${APP_NAME}_words`; // 用户生词本 (高亮词汇) 缓存键名
 export const STOKEY_SYNC = `${APP_NAME}_sync`; // 同步接口及凭证配置缓存键名
 export const STOKEY_FAB = `${APP_NAME}_fab`; // 网页翻译悬浮球最近一次位置等配置缓存键名
+// Local opt-in only: separate from appearance/position writes and synced rules.
+export const STOKEY_TRANSLATION_LOCK = `${APP_NAME}_translation_lock`;
 export const STOKEY_TRANBOX = `${APP_NAME}_tranbox`; // 划词翻译框的最后状态缓存键名
 export const STOKEY_RULE_EDITOR_POSITION = `${APP_NAME}_rule_editor_position`;
 export const STOKEY_RULE_INSPECTOR_POSITION = `${APP_NAME}_rule_inspector_position`;

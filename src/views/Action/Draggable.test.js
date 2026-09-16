@@ -1,4 +1,6 @@
-import { act } from "react";
+// This suite uses ReactDOM directly, not Testing Library's auto-act render.
+/* eslint testing-library/no-unnecessary-act: "off", testing-library/render-result-naming-convention: "off" */
+import { act, StrictMode, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import Draggable, { getEdgePosition } from "./Draggable";
 import { putFab } from "../../libs/storage";
@@ -117,6 +119,88 @@ describe("Draggable FAB edge locking", () => {
     act(() => root.render(<Draggable {...nextFab} />));
     return nextFab;
   }
+
+  function CommitProbe({ observe }) {
+    useLayoutEffect(() => {
+      // Layout effects observe committed styles before passive snapping effects.
+      const wrapper = container.firstElementChild;
+      observe({
+        transform: wrapper.style.transform,
+        transition: wrapper.style.transition,
+      });
+    }, [observe]);
+    return <span>fab</span>;
+  }
+
+  test.each([
+    ["right", 580, 200, "translate(580px, 200px)"],
+    ["left", -20, 180, "translate(-20px, 180px)"],
+    ["top", 300, -20, "translate(300px, -20px)"],
+    ["bottom", 280, 380, "translate(280px, 380px)"],
+    [undefined, -40, 200, "translate(-20px, 200px)"],
+  ])(
+    "the first committed frame already restores the %s edge without a fly-in",
+    (edge, left, top, expected) => {
+      const observe = jest.fn();
+      renderFab({
+        edge,
+        left,
+        top,
+        handler: <CommitProbe observe={observe} />,
+      });
+      expect(observe).toHaveBeenCalledWith({
+        transform: expected,
+        transition: "opacity 160ms ease",
+      });
+      expect(draggable.style.transform).toBe(expected);
+      act(() => jest.runOnlyPendingTimers());
+      expect(draggable.style.transform).toBe(expected);
+    }
+  );
+
+  test("first-commit position is clamped before effects and survives StrictMode remount checks", () => {
+    const observe = jest.fn();
+    act(() => {
+      root.render(
+        <StrictMode>
+          <Draggable
+            windowSize={{ w: 600, h: 400 }}
+            width={40}
+            height={40}
+            left={1400}
+            top={900}
+            edge="right"
+            snapEdge
+            handler={<CommitProbe observe={observe} />}
+          />
+        </StrictMode>
+      );
+    });
+    expect(observe).toHaveBeenCalled();
+    expect(
+      observe.mock.calls.every(
+        ([frame]) => frame.transform === "translate(580px, 360px)"
+      )
+    ).toBe(true);
+    expect(container.firstElementChild.style.transform).toBe(
+      "translate(580px, 360px)"
+    );
+  });
+
+  test("a non-snapped panel uses its requested offset in the first committed frame", () => {
+    const observe = jest.fn();
+    renderFab({
+      left: 120,
+      top: 40,
+      edge: undefined,
+      snapEdge: false,
+      handler: <CommitProbe observe={observe} />,
+    });
+    expect(observe).toHaveBeenCalledWith({
+      transform: "translate(120px, 40px)",
+      transition: "opacity 160ms ease",
+    });
+  });
 
   test("keeps the cross-axis fully visible at viewport corners", () => {
     const dimensions = {

@@ -266,6 +266,7 @@ export const DEFAULT_FAB = {
   isHide: false,
   hideExceptionList: "",
   fabClickAction: 1, // 单击开启整页双语翻译，再次单击收起译文
+  translationLocked: false, // 读取时由独立本机锁状态覆盖，外观设置不可授权自动翻译
 };
 
 // --- 全局默认设置对象，存储于 local storage ---

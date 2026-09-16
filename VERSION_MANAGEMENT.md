@@ -1,6 +1,6 @@
 # 学习版版本与发布
 
-本分支基于上游 2.0.32。Chrome 的数字版本使用 `public/manifest.json` 的 `version`，当前为 `2.0.36`；学习版标识使用 `version_name`，当前为 `2.0.36-learning.7`，GitHub 标签对应 `v2.0.36-learning.7`。
+本分支基于上游 2.0.32。Chrome 的数字版本使用 `public/manifest.json` 的 `version`，当前为 `2.0.37`；学习版标识使用 `version_name`，当前为 `2.0.37-learning.8`，GitHub 标签对应 `v2.0.37-learning.8`。
 
 更新学习版时同步修改 `version_name`、`.env` 的 `REACT_APP_VERSION_NAME`、README 和 `RELEASE-NOTES.md`。保持 `REACT_APP_LEARNING_EDITION=true`，学习版不使用上游站点的版本检查。若需要提升浏览器数字版本，使用保留的 `pnpm version:*` / `pnpm sync-version` 脚本同步 package.json、.env 和各平台清单，再检查学习版 `version_name`。
 

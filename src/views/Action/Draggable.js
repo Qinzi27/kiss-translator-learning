@@ -4,8 +4,13 @@ import { isMobile } from "../../libs/mobile";
 import { putFab } from "../../libs/storage";
 import { debounce } from "../../libs/utils";
 import Paper from "@mui/material/Paper";
+import { readWindowSize } from "../../hooks/WindowSize";
 
 const FAB_EDGES = ["left", "right", "top", "bottom"];
+const relativeCoordinate = (value, size) =>
+  Number.isFinite(value) && Number.isFinite(size) && size > 0
+    ? value / size
+    : 0;
 
 // Find the viewport edge nearest to the current position.
 export const getNearestEdge = ({
@@ -125,13 +130,13 @@ export default function Draggable({
   // Store proportional positions so they scale with viewport changes.
   // Edge snapping normalizes invalid coordinates from zero-sized viewports.
   const latestPosition = useRef({
-    x: left / windowWidth,
-    y: top / windowHeight,
+    x: relativeCoordinate(left, windowWidth),
+    y: relativeCoordinate(top, windowHeight),
   });
   const latestEdge = useRef(edge);
   const [position, setPosition] = useState({
-    x: left / windowWidth,
-    y: top / windowHeight,
+    x: relativeCoordinate(left, windowWidth),
+    y: relativeCoordinate(top, windowHeight),
   });
   // Debounce storage updates for the latest drag position.
   const setFabPosition = useMemo(() => debounce(putFab, 500), []);
@@ -157,8 +162,7 @@ export default function Draggable({
     const onResize = () => {
       if (!containerRef.current) return;
       const { x: px, y: py } = latestPosition.current;
-      const newWindowWidth = document.documentElement.clientWidth;
-      const newWindowHeight = document.documentElement.clientHeight;
+      const { w: newWindowWidth, h: newWindowHeight } = readWindowSize();
       const currentPosition = {
         x: px * newWindowWidth,
         y: py * newWindowHeight,
@@ -223,8 +227,8 @@ export default function Draggable({
     applyTransform(edgePosition.x, edgePosition.y);
 
     const percentageEdge = {
-      x: edgePosition.x / windowWidth,
-      y: edgePosition.y / windowHeight,
+      x: relativeCoordinate(edgePosition.x, windowWidth),
+      y: relativeCoordinate(edgePosition.y, windowHeight),
     };
     setPosition(percentageEdge);
     setFabPosition({ ...edgePosition, edge: activeEdge });
@@ -284,8 +288,8 @@ export default function Draggable({
 
     applyTransform(x, y);
     const relativePosition = {
-      x: x / windowWidth,
-      y: y / windowHeight,
+      x: relativeCoordinate(x, windowWidth),
+      y: relativeCoordinate(y, windowHeight),
     };
     setPosition(relativePosition);
     latestPosition.current = relativePosition;
@@ -364,6 +368,29 @@ export default function Draggable({
         onPointerCancel: handlePointerUp,
       };
 
+  // Position the very first DOM commit, before effects can run or the browser
+  // can paint. Snapping only in useEffect briefly rendered every new page's
+  // button at (0, 0); panels without snapping never received an initial offset.
+  const currentPosition = {
+    x: position.x * windowWidth,
+    y: position.y * windowHeight,
+  };
+  const initialBounds = {
+    ...currentPosition,
+    width,
+    height,
+    windowWidth,
+    windowHeight,
+  };
+  const renderedPosition =
+    snapEdge && !origin
+      ? getEdgePosition({
+          ...initialBounds,
+          revealed,
+          edge: edge || getNearestEdge(initialBounds),
+        })
+      : currentPosition;
+
   return (
     <div
       ref={containerRef}
@@ -374,6 +401,7 @@ export default function Draggable({
         position: "fixed",
         top: 0,
         left: 0,
+        transform: `translate(${renderedPosition.x}px, ${renderedPosition.y}px)`,
         zIndex: 2147483647,
         display: show ? "block" : "none",
         willChange: "transform, opacity",

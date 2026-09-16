@@ -1,3 +1,7 @@
+import { getTranslationLock, setTranslationLock } from "./storage";
+import { matchRule } from "./rules";
+import { isTrustedUserEvent } from "./trustedInteraction";
+import { STOKEY_TRANSLATION_LOCK, MSG_TRANS_LOCK_SET } from "../config";
 import { supportsTouch } from "./touchCapability";
 import ShadowDomManager from "./shadowDomManager";
 import { TouchTranslateStatus } from "../components/TouchTranslateControl";
@@ -105,6 +109,16 @@ export default class TranslatorManager {
   #menuCommandIds = [];
   #clearTouchListeners = [];
   #isActive = false;
+  #lockChangeHandler = null;
+  #lockRevision = 0;
+  #navigationRevision = 0;
+  #manualRevision = 0;
+  #navigationPending = false;
+  #pageKey = "";
+  #navigationApi = null;
+  #lockPending = 0;
+  #lockWriteRevision = 0;
+  #lockQueue = Promise.resolve();
 
   // 初始配置快照。restart 会用运行期状态刷新这些快照，再重建子模块。
   #setting;
@@ -164,6 +178,7 @@ export default class TranslatorManager {
     this.#isIframe = isIframe;
     this.#isUserscript = isUserscript;
     this.#transboxOnly = transboxOnly;
+    this.#pageKey = this.#currentPageKey();
 
     this.#innerMessageHandler = this.#handleInnerMessage.bind(this);
     this.#browserMessageHandler = this.#handleBrowserMessage.bind(this);
@@ -185,6 +200,7 @@ export default class TranslatorManager {
     }
 
     this.#createRuntimeModules();
+    this.#setupLockListener();
     this.#setupMessageListeners();
     if (!this.#transboxOnly) {
       this.#setupTouchOperations();
@@ -209,7 +225,7 @@ export default class TranslatorManager {
    * 它只快照当前运行期状态，销毁挂 DOM 的子模块，再用快照创建新实例。
    * 这能保留用户当前的翻译开关、划词翻译开关和输入框翻译开关。
    */
-  restart(reason = "spa-navigation") {
+  restart(reason = "spa-navigation", ruleOverride) {
     if (!this.#isActive) {
       logger.info("TranslatorManager is not running.");
       return;
@@ -220,7 +236,8 @@ export default class TranslatorManager {
     this.#destroyRuntimeModules();
 
     this.#setting = state.setting;
-    this.#rule = state.rule;
+    this.#rule = ruleOverride ? this.#cloneConfig(ruleOverride) : state.rule;
+    if (this.#navigationPending) this.#rule.transOpen = "false";
     this.#fabConfig = state.fabConfig;
     this.#favWords = state.favWords;
 
@@ -241,6 +258,9 @@ export default class TranslatorManager {
       return;
     }
 
+    this.#navigationRevision++;
+    this.#lockChangeHandler?.();
+    this.#lockChangeHandler = null;
     this.#clearSpaRefreshTimer();
     this.#teardownSpaListeners();
 
@@ -435,6 +455,13 @@ export default class TranslatorManager {
     this.#documentObserver.observe(document, { childList: true });
 
     this.#refreshDocumentElementObserver();
+    window.addEventListener("popstate", this.#spaNavigationHandler);
+    window.addEventListener("hashchange", this.#spaNavigationHandler);
+    this.#navigationApi = window.navigation;
+    this.#navigationApi?.addEventListener(
+      "currententrychange",
+      this.#spaNavigationHandler
+    );
     window.addEventListener("pageshow", this.#pageRestoreHandler);
     document.addEventListener(
       "turbo:frame-load",
@@ -460,6 +487,13 @@ export default class TranslatorManager {
     this.#knownDocumentElement = null;
     this.#knownBody = null;
 
+    window.removeEventListener("popstate", this.#spaNavigationHandler);
+    window.removeEventListener("hashchange", this.#spaNavigationHandler);
+    this.#navigationApi?.removeEventListener(
+      "currententrychange",
+      this.#spaNavigationHandler
+    );
+    this.#navigationApi = null;
     window.removeEventListener("pageshow", this.#pageRestoreHandler);
     document.removeEventListener(
       "turbo:frame-load",
@@ -509,6 +543,7 @@ export default class TranslatorManager {
    * 才说明运行期 DOM 挂载点失效，需要重启子模块。
    */
   #handleDocumentContainerMutation(reason) {
+    this.#detectPageChange();
     if (this.#hasDocumentContainerChanged()) {
       this.#scheduleSpaRefresh("restart", reason);
     }
@@ -522,6 +557,10 @@ export default class TranslatorManager {
    */
   #handlePageRestore(event) {
     if (event.type === "pageshow" && event.persisted !== true) return;
+    if (isTrustedUserEvent(event)) {
+      this.#applyNavigationPolicy();
+      return;
+    }
     this.#scheduleSpaRefresh("rescan", event.type);
   }
 
@@ -532,7 +571,9 @@ export default class TranslatorManager {
    * 如果同一轮事件里观察到容器替换，调度器会自动升级为 restart。
    */
   #handleSpaNavigation(event) {
-    this.#scheduleSpaRefresh("rescan", event.type);
+    if (this.#detectPageChange()) return;
+    if (!["popstate", "hashchange", "currententrychange"].includes(event.type))
+      this.#scheduleSpaRefresh("rescan", event.type);
   }
 
   /**
@@ -568,6 +609,7 @@ export default class TranslatorManager {
       this.#pendingSpaRefreshReason = "";
 
       if (!this.#isActive) return;
+      if (this.#detectPageChange()) return;
 
       if (refreshType === "restart" || this.#hasDocumentContainerChanged()) {
         this.restart(refreshReason);
@@ -600,6 +642,172 @@ export default class TranslatorManager {
       document.documentElement !== this.#knownDocumentElement ||
       document.body !== this.#knownBody
     );
+  }
+
+  #currentPageKey() {
+    const url = new URL(window.location.href);
+    // Anchors stay on the same article; hash routers count as a new page.
+    return `${url.origin}${url.pathname}${url.search}${/^#(?:!|\/)/.test(url.hash) ? url.hash : ""}`;
+  }
+
+  #updateLock(enabled, error = "") {
+    this.#fabConfig = {
+      ...this.#fabConfig,
+      translationLocked: enabled === true,
+    };
+    this._fabManager?.setTranslationLock?.(enabled, error);
+  }
+
+  #setupLockListener() {
+    if (this.#transboxOnly || this.#isUserscript) return;
+    const receive = (raw) => {
+      try {
+        const value = typeof raw === "string" ? JSON.parse(raw) : raw;
+        this.#lockRevision++;
+        // Synchronize the badge, never start other already-open tabs.
+        this.#updateLock(value?.enabled === true);
+      } catch {
+        this.#lockRevision++;
+        this.#updateLock(false);
+      }
+    };
+    if (!this.#isUserscript && browser?.storage?.onChanged) {
+      const listener = (changes, area) => {
+        if (
+          area === "local" &&
+          Object.prototype.hasOwnProperty.call(changes, STOKEY_TRANSLATION_LOCK)
+        )
+          receive(changes[STOKEY_TRANSLATION_LOCK]?.newValue);
+      };
+      browser.storage.onChanged.addListener(listener);
+      this.#lockChangeHandler = () =>
+        browser.storage.onChanged.removeListener(listener);
+    } else {
+      const listener = (event) => {
+        if (
+          isTrustedUserEvent(event) &&
+          (event.key === STOKEY_TRANSLATION_LOCK || event.key === null)
+        )
+          receive(event.newValue);
+      };
+      window.addEventListener("storage", listener);
+      this.#lockChangeHandler = () =>
+        window.removeEventListener("storage", listener);
+    }
+  }
+
+  async #saveTranslationLock(enabled) {
+    const navigation = this.#navigationRevision;
+    const manual = this.#manualRevision;
+    const write = ++this.#lockWriteRevision;
+    this.#lockPending++;
+    this.#lockRevision++; // A pending unlock must also block a stale navigation read.
+    let actual;
+    let saved = false;
+    try {
+      const task = this.#lockQueue.then(async () => {
+        await setTranslationLock(enabled);
+        saved = true;
+        const observed = this.#lockRevision;
+        return { value: await getTranslationLock(), observed };
+      });
+      this.#lockQueue = task.catch(() => {});
+      const read = await task;
+      actual =
+        read.observed === this.#lockRevision
+          ? read.value
+          : this.#fabConfig.translationLocked === true;
+    } catch {
+      const error = saved
+        ? "锁定偏好已保存，但状态确认失败；本页未自动开启，请重试。"
+        : "锁定设置未保存，请重试。";
+      if (this.#isActive && write === this.#lockWriteRevision)
+        this.#updateLock(
+          saved ? enabled : this.#fabConfig.translationLocked,
+          error
+        );
+      return { error };
+    } finally {
+      this.#lockPending--;
+    }
+    if (!this.#isActive || write !== this.#lockWriteRevision) return;
+    this.#lockRevision++;
+    this.#updateLock(actual);
+    if (
+      enabled &&
+      actual &&
+      manual === this.#manualRevision &&
+      !this._ruleEditorManager?.session &&
+      !isInBlacklist(window.location.href, this.#setting.blacklist)
+    ) {
+      if (navigation !== this.#navigationRevision || this.#navigationPending)
+        this.#applyNavigationPolicy();
+      else this._translator?.enable();
+    }
+    return { translationLocked: actual };
+  }
+
+  #detectPageChange() {
+    if (!this.#isActive || this.#transboxOnly) return false;
+    const key = this.#currentPageKey();
+    if (key === this.#pageKey) return false;
+    this.#pageKey = key;
+    this.#applyNavigationPolicy();
+    return true;
+  }
+
+  async #applyNavigationPolicy() {
+    if (!this.#isActive || this.#transboxOnly) return;
+    const revision = ++this.#navigationRevision;
+    const lockRevision = this.#lockRevision;
+    const manualRevision = this.#manualRevision;
+    this.#navigationPending = true;
+    this.#clearSpaRefreshTimer();
+    this._translator?.disable();
+    this.#rule = { ...this.#rule, transOpen: "false" };
+    const href = window.location.href;
+    try {
+      const locked = await getTranslationLock();
+      const setting = this.#getRuntimeSetting();
+      const blocked = isInBlacklist(href, setting.blacklist);
+      const rule = blocked ? { ...this.#rule } : await matchRule(href, setting);
+      if (!this.#isActive || revision !== this.#navigationRevision) return;
+      const actual =
+        lockRevision === this.#lockRevision
+          ? locked
+          : this.#fabConfig.translationLocked === true;
+      this.#updateLock(actual);
+      // Keep a newer explicit action on this URL, but never carry an old page's
+      // automatic rule across navigation or override the current blacklist.
+      const manualOpen =
+        !blocked &&
+        manualRevision !== this.#manualRevision &&
+        this._translator?.rule?.transOpen === "true";
+      this.#rule = { ...rule, transOpen: manualOpen ? "true" : "false" };
+      this.#navigationPending = false;
+      this.#clearSpaRefreshTimer();
+      if (this.#hasDocumentContainerChanged())
+        this.restart("navigation", this.#rule);
+      else {
+        this._translator?.updateRule(this.#rule);
+        this._translator?.rescan();
+      }
+      if (
+        !blocked &&
+        this.#lockPending === 0 &&
+        !this.#isIframe &&
+        actual &&
+        manualRevision === this.#manualRevision &&
+        !this._ruleEditorManager?.session
+      )
+        this._translator?.enable();
+      this.#notifyTouchState();
+    } catch {
+      if (this.#isActive && revision === this.#navigationRevision) {
+        this.#navigationPending = false;
+        this.#updateLock(false, "未能读取新页面的锁定设置，已停止自动翻译。");
+      }
+    }
   }
 
   /**
@@ -691,7 +899,11 @@ export default class TranslatorManager {
       rule: this._translator?.rule || this.#rule,
       setting: this.#getRuntimeSetting(),
     };
-    sendResponse(response);
+    if (result && typeof result.then === "function") {
+      result.then(sendResponse, () =>
+        sendResponse({ error: "锁定设置未保存，请重试。" })
+      );
+    } else sendResponse(response);
     return true;
   }
 
@@ -814,17 +1026,32 @@ export default class TranslatorManager {
     if (this._ruleEditorManager?.session && action !== MSG_TRANS_GETRULE)
       return;
 
+    if (action === MSG_TRANS_LOCK_SET) {
+      if (
+        this.#isIframe ||
+        this.#transboxOnly ||
+        !args ||
+        Array.isArray(args) ||
+        Object.keys(args).length !== 1 ||
+        typeof args.enabled !== "boolean"
+      )
+        return;
+      return this.#saveTranslationLock(args.enabled);
+    }
+
     // Only public stop actions may cross the page-controlled DOM
     // channel. Privileged commands use extension messaging, never postMessage.
     if (!fromExt) {
       const publicMessage = publicPageAction({ action, args });
-      if (publicMessage) sendIframeMsg(publicMessage.action, publicMessage.args);
+      if (publicMessage)
+        sendIframeMsg(publicMessage.action, publicMessage.args);
     }
 
     logger.debug("process action:", action, args);
 
     switch (action) {
       case MSG_TRANS_TOGGLE:
+        this.#manualRevision++;
         if (typeof args?.enabled === "boolean") {
           args.enabled
             ? this._translator?.enable()

@@ -6,6 +6,7 @@ import {
   STOKEY_RULES_OLD,
   STOKEY_WORDS,
   STOKEY_FAB,
+  STOKEY_TRANSLATION_LOCK,
   STOKEY_TRANBOX,
   STOKEY_SYNC,
   STOKEY_BDAUTH,
@@ -290,13 +291,43 @@ export const removeDisabledSubRules = async (url) => {
 };
 
 // --- 悬浮球 (Fab Button) 位置及偏好存取 ---
+// Only this dedicated key can authorize automatic translation on a new page.
+// Legacy FAB fields, exported settings and rules are never lock authorization.
+export const getTranslationLock = async () => {
+  const value = await getObj(STOKEY_TRANSLATION_LOCK);
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    value.enabled === true
+  );
+};
+export const setTranslationLock = async (enabled) => {
+  if (typeof enabled !== "boolean")
+    throw new TypeError("翻译锁定状态必须是布尔值。");
+  await setObj(STOKEY_TRANSLATION_LOCK, { enabled });
+};
+
+const withoutTranslationLock = (value) => {
+  const result =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? { ...value }
+      : {};
+  delete result.translationLocked;
+  return result;
+};
 export const getFab = () => getObj(STOKEY_FAB);
 export const getFabWithDefault = async () => ({
   ...DEFAULT_FAB,
   ...(await getFab()),
+  translationLocked: await getTranslationLock(),
 });
-export const setFab = (obj) => setObj(STOKEY_FAB, obj);
-export const putFab = (obj) => putObj(STOKEY_FAB, obj);
+export const setFab = (obj) => setObj(STOKEY_FAB, withoutTranslationLock(obj));
+export const putFab = async (obj) =>
+  setFab({
+    ...withoutTranslationLock(await getFab()),
+    ...withoutTranslationLock(obj),
+  });
 
 // --- 交互翻译框 (TranBox UI) 位置与大小存取 ---
 export const getTranBox = () => getObj(STOKEY_TRANBOX);

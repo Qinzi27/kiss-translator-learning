@@ -22,6 +22,7 @@ export const MSG_OPEN_OPTIONS = "open_options"; // 打开扩展设置页面消�
 export const MSG_SAVE_RULE = "save_rule"; // 保存自定义的网页翻译规则
 export const MSG_EDIT_RULE = "edit_site_rule";
 export const MSG_RULE_EDITOR = "open_rule_editor";
+export const MSG_TRANS_LOCK_SET = "set_translation_lock"; // 本机持续翻译偏好，仅受信任内部入口
 export const MSG_TRANS_TOGGLE = "toggle_translate"; // 广播切换双语翻译消息
 export const MSG_TRANS_TOGGLE_ONLY = "toggle_translate_only"; // 广播切换仅显示译文消息
 export const MSG_TRANS_TOGGLE_STYLE = "toggle_styles"; // 广播切换译文样式消息

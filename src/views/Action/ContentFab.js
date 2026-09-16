@@ -1,5 +1,7 @@
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import LockRoundedIcon from "@mui/icons-material/LockRounded";
+import LockOpenRoundedIcon from "@mui/icons-material/LockOpenRounded";
 import { getFabAppearance } from "../../libs/fabAppearance";
 import {
   IDLE_TRANSLATION_PROGRESS,
@@ -40,6 +42,7 @@ import {
   MSG_OPEN_TRANBOX,
   MSG_POPUP_TOGGLE,
   MSG_TRANS_TOGGLE,
+  MSG_TRANS_LOCK_SET,
   MSG_TRANS_TOGGLE_STYLE,
   MSG_TRANSBOX_TOGGLE,
 } from "../../config";
@@ -51,11 +54,14 @@ import useWindowSize from "../../hooks/WindowSize";
 import { useFullscreenDetect } from "../../hooks/useFullscreenDetect";
 import { ACTION_STYLES } from "./styles";
 import { subscribeInternalMessage } from "../../libs/internalEvents";
+import { isTrustedUserEvent } from "../../libs/trustedInteraction";
 
 const selectionUnavailable = () => false;
 const emptySubscribe = () => () => {};
 const idleProgress = () => IDLE_TRANSLATION_PROGRESS;
 const emptyFabConfig = Object.freeze({});
+const LONG_PRESS_MS = 650;
+const LONG_PRESS_MOVE_PX = 8;
 
 function subscribeSelectionEnabled(onChange) {
   const handleChange = (message) => {
@@ -118,6 +124,14 @@ export function ContentFabContent({
   const busy = isTranslationBusy(progress);
   const statusLabel = translationProgressLabel(progress);
   const appearance = getFabAppearance(config, progress.phase);
+  const translationLocked = config.translationLocked === true;
+  const lockLabel = translationLocked
+    ? "持续翻译已锁定：新网页自动翻译"
+    : "持续翻译未锁定：新网页不自动翻译";
+  const lockError =
+    typeof config.translationLockError === "string"
+      ? config.translationLockError
+      : "";
   // Use the current tab's runtime state, which can differ from stored settings.
   const selectionEnabled = useSyncExternalStore(
     subscribeSelectionEnabled,
@@ -133,11 +147,92 @@ export function ContentFabContent({
   const anchorRef = useRef(null);
   const menuRef = useRef(null);
   const popperRef = useRef(null);
+  const longPressRef = useRef(null);
+  const suppressClickRef = useRef(false);
+  const latestLockRef = useRef(translationLocked);
+  latestLockRef.current = translationLocked;
   const handleMenuNavigation = useMemo(
     () => createMenuKeyDownHandler({ shadowOnly: true }),
     []
   );
   const { isVideoFullscreen } = useFullscreenDetect();
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current.timer);
+      longPressRef.current = null;
+    }
+  }, []);
+
+  const toggleTranslationLock = useCallback(() => {
+    processActions({
+      action: MSG_TRANS_LOCK_SET,
+      args: { enabled: !latestLockRef.current },
+    });
+  }, [processActions]);
+
+  const handlePointerDown = useCallback(
+    (event) => {
+      cancelLongPress();
+      if (
+        !isTrustedUserEvent(event.nativeEvent || event) ||
+        event.button !== 0 ||
+        event.isPrimary === false
+      ) {
+        return;
+      }
+      suppressClickRef.current = false;
+      const press = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      };
+      press.timer = setTimeout(() => {
+        if (longPressRef.current !== press) return;
+        longPressRef.current = null;
+        suppressClickRef.current = true;
+        setOpen(false);
+        toggleTranslationLock();
+      }, LONG_PRESS_MS);
+      longPressRef.current = press;
+    },
+    [cancelLongPress, toggleTranslationLock]
+  );
+
+  useEffect(() => {
+    const ownerDocument = anchorRef.current.ownerDocument;
+    const ownerWindow = ownerDocument.defaultView;
+    const endPress = (event) => {
+      if (event.pointerId === longPressRef.current?.pointerId)
+        cancelLongPress();
+    };
+    const movePress = (event) => {
+      const press = longPressRef.current;
+      if (!press || event.pointerId !== press.pointerId) return;
+      if (
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) >
+        LONG_PRESS_MOVE_PX
+      ) {
+        cancelLongPress();
+      }
+    };
+    const hidePress = () => {
+      if (ownerDocument.hidden) cancelLongPress();
+    };
+    ownerDocument.addEventListener("pointermove", movePress, true);
+    ownerDocument.addEventListener("pointerup", endPress, true);
+    ownerDocument.addEventListener("pointercancel", endPress, true);
+    ownerDocument.addEventListener("visibilitychange", hidePress);
+    ownerWindow.addEventListener("blur", cancelLongPress);
+    return () => {
+      cancelLongPress();
+      ownerDocument.removeEventListener("pointermove", movePress, true);
+      ownerDocument.removeEventListener("pointerup", endPress, true);
+      ownerDocument.removeEventListener("pointercancel", endPress, true);
+      ownerDocument.removeEventListener("visibilitychange", hidePress);
+      ownerWindow.removeEventListener("blur", cancelLongPress);
+    };
+  }, [cancelLongPress]);
 
   useEffect(() => {
     setShowFab(!isVideoFullscreen);
@@ -145,8 +240,9 @@ export function ContentFabContent({
     // preventing an orphaned panel that cannot be reached or dismissed.
     if (isVideoFullscreen) {
       setOpen(false);
+      cancelLongPress();
     }
-  }, [isVideoFullscreen]);
+  }, [cancelLongPress, isVideoFullscreen]);
 
   const closeMenu = useCallback((restoreFocus = false) => {
     setOpen(false);
@@ -154,7 +250,7 @@ export function ContentFabContent({
   }, []);
 
   useEffect(() => {
-    if (!opensMenu || !open) return;
+    if (!open) return;
 
     const ownerDocument = anchorRef.current.ownerDocument;
     let touchMoved = false;
@@ -192,7 +288,7 @@ export function ContentFabContent({
       ownerDocument.removeEventListener("touchmove", handleTouchMove, true);
       ownerDocument.removeEventListener("touchend", handleTouchEnd, true);
     };
-  }, [closeMenu, open, opensMenu]);
+  }, [closeMenu, open]);
 
   // Popper does not observe the anchor's edge-reveal transform animation.
   const updateMenuPosition = useCallback(() => {
@@ -206,9 +302,10 @@ export function ContentFabContent({
 
   // Close the menu before its transformed anchor moves away from it.
   const handleMove = useCallback(() => {
+    cancelLongPress();
     setMoved(true);
     closeMenu(true);
-  }, [closeMenu]);
+  }, [cancelLongPress, closeMenu]);
 
   // Run an action and close the menu.
   const runAction = useCallback(
@@ -234,17 +331,47 @@ export function ContentFabContent({
   }, [closeMenu]);
 
   // Ignore clicks after dragging to prevent accidental activation.
-  const handleClick = useCallback(() => {
-    if (moved) {
-      return;
-    }
-    // fabClickAction === 1 keeps the legacy direct translation action.
-    if (!opensMenu) {
-      runAction(MSG_TRANS_TOGGLE);
-      return;
-    }
-    setOpen((current) => !current);
-  }, [moved, opensMenu, runAction]);
+  const handleClick = useCallback(
+    (event) => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (moved) {
+        return;
+      }
+      // fabClickAction === 1 keeps the legacy direct translation action.
+      if (!opensMenu) {
+        runAction(MSG_TRANS_TOGGLE);
+        return;
+      }
+      setOpen((current) => !current);
+    },
+    [moved, opensMenu, runAction]
+  );
+
+  const handleFabKeyDown = useCallback(
+    (event) => {
+      if (!isTrustedUserEvent(event.nativeEvent || event)) return;
+      // A later keyboard activation is a new gesture, not the long-press click.
+      if (event.key === "Enter" || event.key === " ") {
+        suppressClickRef.current = false;
+      }
+      if (
+        event.key === "ArrowDown" ||
+        event.key === "ContextMenu" ||
+        (event.shiftKey && event.key === "F10")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelLongPress();
+        setOpen(true);
+      }
+    },
+    [cancelLongPress]
+  );
 
   // Close the menu and return focus to the FAB before menu items unmount.
   const handleMenuKeyDown = useCallback(
@@ -303,6 +430,17 @@ export function ContentFabContent({
       action: () => setTouchOpen((value) => !value),
       hidden: !supportsTouch(),
     },
+    {
+      label: translationLocked
+        ? "关闭持续翻译锁定"
+        : "锁定持续翻译（新网页自动翻译）",
+      icon: translationLocked ? LockOpenRoundedIcon : LockRoundedIcon,
+      action: (event) => {
+        if (!isTrustedUserEvent(event.nativeEvent || event)) return;
+        toggleTranslationLock();
+        closeMenu(true);
+      },
+    },
   ].filter((item) => !item.hidden);
 
   return (
@@ -310,7 +448,7 @@ export function ContentFabContent({
       key="fab"
       snapEdge // Keep the idle FAB partially hidden at the viewport edge.
       fitContent // The fixed menu must not be constrained by the 56px FAB wrapper.
-      expanded={busy || (opensMenu && open)} // Keep the anchor fully revealed while the menu is open.
+      expanded={busy || open} // Keep the anchor fully revealed while the menu is open.
       {...fabProps}
       show={showFab}
       onStart={handleStart}
@@ -321,22 +459,32 @@ export function ContentFabContent({
           id="kt-content-fab-button"
           ref={anchorRef}
           className="kt-content-fab"
-          aria-expanded={opensMenu ? open : undefined}
-          aria-haspopup={opensMenu ? "menu" : undefined}
-          aria-controls={opensMenu && open ? "kt-content-fab-menu" : undefined}
-          aria-label={i18n("translate")}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-controls={open ? "kt-content-fab-menu" : undefined}
+          aria-label={`${i18n("translate")}，${lockLabel}`}
           aria-busy={busy}
           aria-describedby="kt-content-fab-progress"
           data-translation-state={progress.phase}
-          title={`${statusLabel}。${opensMenu ? "点击打开翻译菜单" : progress.enabled ? "点击停止翻译" : "点击开始翻译"}`}
+          data-translation-locked={translationLocked}
+          title={`${statusLabel}。${opensMenu ? "点击打开翻译菜单" : progress.enabled ? "点击停止翻译" : "点击开始翻译"}。${lockLabel}；长按切换锁定，按向下箭头打开菜单${lockError ? `。${lockError}` : ""}`}
           style={{
             "--kt-fab-fill": appearance.backgroundColor,
             "--kt-fab-ink": appearance.color,
           }}
           onClick={handleClick}
+          onPointerDown={handlePointerDown}
+          onLostPointerCapture={cancelLongPress}
+          onBlur={cancelLongPress}
+          onKeyDown={handleFabKeyDown}
         >
           {busy && (
             <span className="kt-content-fab-progress-ring" aria-hidden="true" />
+          )}
+          {translationLocked && (
+            <span className="kt-content-fab-lock" aria-hidden="true">
+              <LockRoundedIcon />
+            </span>
           )}
           {progress.phase === "error" ? (
             <ErrorOutlineRoundedIcon />
@@ -361,11 +509,12 @@ export function ContentFabContent({
         aria-live="polite"
         aria-atomic="true"
       >
-        {statusLabel}
+        {statusLabel}。{lockLabel}
+        {lockError ? `。${lockError}` : ""}
       </span>
       <Popper
         popperRef={popperRef}
-        open={opensMenu && open && Boolean(anchorRef.current)}
+        open={open && Boolean(anchorRef.current)}
         anchorEl={anchorRef.current}
         placement="top-end"
         // Render inside the content page's shadow root to retain M3Theme styles;

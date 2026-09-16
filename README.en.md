@@ -4,7 +4,7 @@
 
 Click the floating button on a regular webpage to keep the original text and append a translation below it. Click again to hide the translation. This edition focuses on English–Chinese reading, with online services and a separately prepared local Argos engine.
 
-Current version: **`2.0.36-learning.7` (prerelease)**. This version adds an **插件更新** panel in Options and customizable status colors and icons for the webpage and PDF floating buttons. The Python updater, PDF reader, two-page pretranslation, session cache and earlier security fixes remain available. The new Chrome directory-update flow has not completed real installed-extension end-to-end testing. See [update instructions](UPDATING.md) and [security and migration notes](SECURITY.md).
+Current version: **`2.0.37-learning.8` (prerelease)**. The webpage button now renders at its saved position immediately. Hold it for **650 milliseconds** to switch a persistent translation lock: when locked, subsequent regular webpages translate automatically; the default unlocked mode waits for a manual action on each new page. The **插件更新** panel, three status colors, PDF reader, Python updater and earlier security fixes remain available. The Chrome directory-update flow has not completed real installed-extension end-to-end testing. See [update instructions](UPDATING.md) and [security and migration notes](SECURITY.md).
 
 This is an independent learning fork of [KISS Translator by Gabe / fishjar and contributors](https://github.com/fishjar/kiss-translator), based on version 2.0.32. **It is not an official release from the upstream author.** Upstream attribution and the [GPL-3.0 license](LICENSE) are retained.
 
@@ -24,6 +24,18 @@ Clicking page translation also enables automatic page translation and pretransla
 
 Webpage and PDF floating buttons show actual request activity with a progress ring, a completion check or an error icon. The PDF ring contains a stop square; the webpage button preserves its configured stop/menu behavior. In **概览 → 悬浮翻译按钮颜色**, choose idle, busy and completed colors or enter six-digit hex values. Valid edits save automatically and synchronize with open reading pages. Foregrounds switch to high-contrast black or white; resetting colors preserves position, visibility and click behavior. Reduced-motion preferences are respected.
 
+The webpage button uses its saved position on the first render, avoiding an initial jump from the corner. Navigation creates a new document, so the extension still injects the button into each new document while retaining position, click preference and all three colors. Changing the translation language remains an operation on the current page.
+
+### Hold to lock translation across pages
+
+- Hold the webpage button for about **650 ms** to toggle the lock. A small lock badge means that later regular top-level webpages, refreshes and new single-page-app routes will start translation automatically. Enabling the lock also enables translation on the current page.
+- Hold again to unlock. Existing translations on the current page remain, but later pages no longer start automatically. The default short click only toggles the current page and does not change the lock. Existing menu-click preferences remain supported.
+- With the button focused, press **Arrow Down** or **Shift + F10** to open its menu and choose the lock action. Moving or dragging, releasing early, or losing focus cancels an unfinished hold; releasing a completed hold does not also trigger a short click.
+
+The lock persists locally in the current browser profile, in a separate storage key from position and colors. Dragging or changing colors cannot overwrite it. Other already-open tabs only synchronize the badge; they do not suddenly send text for translation. When unlocked, a saved automatic-start value in an older site or global rule cannot start translation on a new page. The title and accessible status announce the current lock state; a save failure prompts a retry rather than reporting success.
+
+Site blacklists and the network policy still apply. The webpage lock does not automatically translate iframes or PDFs; PDFs retain their own translation controls. With an online provider selected, locked navigation sends eligible page text to that provider and uses its quota.
+
 ## Install or update
 
 1. Download `kiss-translator-learning-chrome.zip` from this repository's [Releases](../../releases) and extract it.
@@ -38,6 +50,8 @@ For a Chrome Developer mode installation, open **插件更新** in Options. Firs
 The browser updater verifies downloads before saving one rollback backup in the extension's IndexedDB, limited to 64 MiB of old file contents. It then replaces files individually, committing entry points last. **This is not an atomic whole-directory replacement.** Errors trigger a recovery attempt; closing the page, power loss or external file edits may require manual recovery before reloading. Requests target this fixed repository's public GitHub releases and allowed attachment-CDN redirects without login credentials or translation keys. Offline-only mode blocks browser update checks and downloads. The real Chrome File System Access permission/write/recovery/reload flow remains unverified; current coverage uses synthetic filesystem, storage and UI tests plus build checks. See [UPDATING.md](UPDATING.md).
 
 The Python updater remains available: double-click `更新插件.command` on macOS or `更新插件.bat` on Windows beside `chrome`, with Python 3.9+ installed. Reload the extension afterward. **Never run the browser and Python updaters simultaneously**; their locks and backups are separate, and the extension's offline policy does not control the external Python process. Existing settings usually remain; missing presets can be added without clearing them. The upstream store extension is a different release.
+
+On the first upgrade to learning.8, reload the extension and then refresh existing reading tabs to receive the new position and hold behavior. The lock starts off; saved position, colors and click preference remain intact.
 
 Open **AI 翻译向导** in Options to try the MyMemory card, add a service, or configure an AI API. Tests send a disclosed synthetic sentence only when clicked. Saving an AI configuration does not send that sentence. After adding a service, refresh the reading page and select it in the translation panel. See the [Chinese setup guide](START-HERE.md) for global rules and offline preparation.
 
@@ -67,6 +81,8 @@ Earlier real MyMemory and Argos inference checks include Argos in a macOS proces
 The learning.5 MIME, pretranslation and cache paths have synthetic tests and build checks; see the validation record for results. The installed Chrome 153 native MIME flow has **not** been accepted in a real extension session. Private PDFs are not included in public release artifacts or fixtures.
 
 Learning.7 browser-update tests simulate atomic individual-file closes, durable IndexedDB commits, failed writes, cancellation, rollback, external edits, directory probes and size limits. These tests do not establish that real Chrome folder permissions, disk transactions or recovery after power loss work end to end.
+
+Learning.8 adds automated checks for first-render positioning and the actual button/dragging component combination, including hold cancellation, keyboard controls and rejection of untrusted synthetic events. These checks do not establish the complete installed-Chrome hold and cross-page persistence flow. This release adds no new API-key or live cloud-model validation.
 
 The eight AI APIs were not called with user account keys. Background webpage tests use DOM fixtures, not real logged-in sessions. No claim is made about mainland China network reachability, indefinite availability or unlimited free usage. Splitting rich text can preserve formatting while reducing translation fluency.
 

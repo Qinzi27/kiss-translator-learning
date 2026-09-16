@@ -1,6 +1,7 @@
 import {
   STOKEY_SETTING,
   STOKEY_FAB,
+  STOKEY_TRANSLATION_LOCK,
   STOKEY_SETTING_BACKUP_V1_BEFORE_V2,
   SETTINGS_VERSION_V2,
   SETTINGS_VERSION_V3,
@@ -12,6 +13,10 @@ import {
 } from "../config";
 import {
   getFabWithDefault,
+  getTranslationLock,
+  setTranslationLock,
+  setFab,
+  putFab,
   getSettingWithDefault,
   runDataMigration,
   tryInitDefaultData,
@@ -59,7 +64,111 @@ describe("settings storage migration", () => {
       isHide: false,
       fabClickAction: 1,
       hideExceptionList: "",
+      translationLocked: false,
     });
+  });
+
+  test("the translation lock persists under its own key and overrides stale FAB values", async () => {
+    window.localStorage.setItem(
+      STOKEY_FAB,
+      JSON.stringify({ translationLocked: true, x: 12 })
+    );
+    await expect(getTranslationLock()).resolves.toBe(false);
+    await expect(getFabWithDefault()).resolves.toMatchObject({
+      translationLocked: false,
+      x: 12,
+    });
+    await setTranslationLock(true);
+    expect(readStoredJson(STOKEY_TRANSLATION_LOCK)).toEqual({ enabled: true });
+    window.localStorage.setItem(
+      STOKEY_FAB,
+      JSON.stringify({ translationLocked: false, x: 13 })
+    );
+    await expect(getTranslationLock()).resolves.toBe(true);
+    await expect(getFabWithDefault()).resolves.toMatchObject({
+      translationLocked: true,
+      x: 13,
+    });
+    await setTranslationLock(false);
+    expect(readStoredJson(STOKEY_TRANSLATION_LOCK)).toEqual({ enabled: false });
+    await expect(getTranslationLock()).resolves.toBe(false);
+  });
+
+  test.each([
+    null,
+    true,
+    false,
+    "true",
+    1,
+    [],
+    [true],
+    {},
+    { enabled: "true" },
+    { enabled: 1 },
+    { enabled: {} },
+  ])(
+    "malformed translation lock %j cannot authorize a new page",
+    async (value) => {
+      window.localStorage.setItem(
+        STOKEY_TRANSLATION_LOCK,
+        JSON.stringify(value)
+      );
+      window.localStorage.setItem(
+        STOKEY_FAB,
+        JSON.stringify({ translationLocked: true })
+      );
+      await expect(getTranslationLock()).resolves.toBe(false);
+      await expect(getFabWithDefault()).resolves.toHaveProperty(
+        "translationLocked",
+        false
+      );
+    }
+  );
+
+  test.each([undefined, null, "true", "false", 0, 1, {}, []])(
+    "the lock setter rejects a non-boolean %j without changing the stored lock",
+    async (value) => {
+      await setTranslationLock(false);
+      await expect(setTranslationLock(value)).rejects.toThrow(TypeError);
+      expect(readStoredJson(STOKEY_TRANSLATION_LOCK)).toEqual({
+        enabled: false,
+      });
+    }
+  );
+
+  test("FAB dragging and color writes cannot grant or revoke the independent lock", async () => {
+    await putFab({ x: 15, translationLocked: true });
+    expect(readStoredJson(STOKEY_FAB)).toEqual({ x: 15 });
+    expect(readStoredJson(STOKEY_TRANSLATION_LOCK)).toBeNull();
+    await expect(getTranslationLock()).resolves.toBe(false);
+
+    await setTranslationLock(true);
+    await putFab({ y: 20, busyColor: "#123456", translationLocked: false });
+    expect(readStoredJson(STOKEY_FAB)).toEqual({
+      x: 15,
+      y: 20,
+      busyColor: "#123456",
+    });
+    await expect(getTranslationLock()).resolves.toBe(true);
+
+    const staleAppearance = await getFabWithDefault();
+    await setTranslationLock(false);
+    await setFab({ ...staleAppearance, idleColor: "#654321" });
+    expect(readStoredJson(STOKEY_FAB)).not.toHaveProperty("translationLocked");
+    await expect(getFabWithDefault()).resolves.toMatchObject({
+      translationLocked: false,
+      idleColor: "#654321",
+    });
+  });
+
+  test("a FAB patch also removes a legacy lock field without touching authorization", async () => {
+    window.localStorage.setItem(
+      STOKEY_FAB,
+      JSON.stringify({ translationLocked: true, x: 7 })
+    );
+    await putFab({ y: 11 });
+    expect(readStoredJson(STOKEY_FAB)).toEqual({ x: 7, y: 11 });
+    await expect(getTranslationLock()).resolves.toBe(false);
   });
 
   test("fresh installation keeps the Chinese UI default even when the browser reports English", async () => {
@@ -99,7 +208,10 @@ describe("settings storage migration", () => {
     };
     window.localStorage.setItem(STOKEY_FAB, JSON.stringify(savedFab));
 
-    await expect(getFabWithDefault()).resolves.toEqual({ ...DEFAULT_FAB, ...savedFab });
+    await expect(getFabWithDefault()).resolves.toEqual({
+      ...DEFAULT_FAB,
+      ...savedFab,
+    });
     expect(readStoredJson(STOKEY_FAB)).toEqual(savedFab);
   });
 

@@ -1,6 +1,5 @@
 import * as internalEvents from "../../libs/internalEvents";
 import { emitInternalMessage } from "../../libs/internalEvents";
-jest.mock("../../components/TouchTranslateControl", () => () => null);
 /* eslint-disable testing-library/no-container, testing-library/no-unnecessary-act */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -14,6 +13,8 @@ import {
   MSG_TRANSBOX_TOGGLE,
 } from "../../config";
 import { sendBgMsg } from "../../libs/msg";
+
+jest.mock("../../components/TouchTranslateControl", () => () => null);
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -161,9 +162,9 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     expect(menu.closest(".kt-m3-root")).not.toBeNull();
     expect(menu.getRootNode()).toBe(focusRoot);
     expect(focusRoot.activeElement).toBe(menuItems()[0]);
-    if (context === "shadow root") {
-      expect(document.activeElement).toBe(host);
-    }
+    expect(document.activeElement).toBe(
+      context === "shadow root" ? host : menuItems()[0]
+    );
     expect(menuItems().map((item) => item.textContent)).toEqual([
       "popup_translate_page",
       "text_style_alt",
@@ -171,6 +172,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
       "open_menu",
       "open_setting",
       "touch_paragraph",
+      "锁定持续翻译（新网页自动翻译）",
     ]);
     expect(fab().querySelectorAll(".MuiSpeedDialIcon-root svg")).toHaveLength(
       2
@@ -246,7 +248,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     expect(menuItems()[2].getAttribute("aria-disabled")).toBe("true");
     act(() => menuItems()[2].click());
     expect(processActions).not.toHaveBeenCalled();
-    expect(menuItems()).toHaveLength(6);
+    expect(menuItems()).toHaveLength(7);
 
     pressMenuKey("ArrowDown");
     expect(focusRoot.activeElement).toBe(menuItems()[1]);
@@ -259,11 +261,12 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     render();
     clickFab();
 
+    const setSelectionAvailability = (enabled) => {
+      selectionEnabled = enabled;
+      emitInternalMessage({ action: MSG_TRANSBOX_TOGGLE });
+    };
     for (const enabled of [true, true, false, true]) {
-      act(() => {
-        selectionEnabled = enabled;
-        emitInternalMessage({ action: MSG_TRANSBOX_TOGGLE });
-      });
+      act(() => setSelectionAvailability(enabled));
       expect(menuItems()[2].getAttribute("aria-disabled")).toBe(
         enabled ? null : "true"
       );
@@ -275,7 +278,9 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
 
   test("removes the selection availability listener when unmounted", () => {
     const unsubscribe = jest.fn();
-    const subscribe = jest.spyOn(internalEvents, "subscribeInternalMessage").mockReturnValue(unsubscribe);
+    const subscribe = jest
+      .spyOn(internalEvents, "subscribeInternalMessage")
+      .mockReturnValue(unsubscribe);
     render();
     act(() => root.render(null));
     expect(unsubscribe).toHaveBeenCalled();
@@ -293,11 +298,11 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     pressMenuKey("ArrowUp");
     expect(focusRoot.activeElement).toBe(menuItems()[1]);
     expect(pressMenuKey("End").defaultPrevented).toBe(true);
-    expect(focusRoot.activeElement).toBe(menuItems()[5]);
+    expect(focusRoot.activeElement).toBe(menuItems()[6]);
     pressMenuKey("ArrowDown");
     expect(focusRoot.activeElement).toBe(menuItems()[0]);
     pressMenuKey("ArrowUp");
-    expect(focusRoot.activeElement).toBe(menuItems()[5]);
+    expect(focusRoot.activeElement).toBe(menuItems()[6]);
     expect(pressMenuKey("Home").defaultPrevented).toBe(true);
     expect(focusRoot.activeElement).toBe(menuItems()[0]);
     expect(processActions).not.toHaveBeenCalled();
@@ -363,8 +368,8 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     (_, config) => {
       render(config);
 
-      expect(fab().getAttribute("aria-expanded")).toBeNull();
-      expect(fab().getAttribute("aria-haspopup")).toBeNull();
+      expect(fab().getAttribute("aria-expanded")).toBe("false");
+      expect(fab().getAttribute("aria-haspopup")).toBe("menu");
       expect(fab().getAttribute("aria-controls")).toBeNull();
       expect(fab().querySelector(".MuiSpeedDialIcon-root")).toBeNull();
       expect(fab().querySelectorAll("svg")).toHaveLength(1);
@@ -406,7 +411,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
     expect(draggableProps.expanded).toBe(true);
 
     act(() => draggableProps.onStart());
-    expect(menuItems()).toHaveLength(6);
+    expect(menuItems()).toHaveLength(7);
     act(() => draggableProps.onMove());
 
     expect(menuItems()).toHaveLength(0);
@@ -418,7 +423,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
 
     act(() => draggableProps.onStart());
     clickFab();
-    expect(menuItems()).toHaveLength(6);
+    expect(menuItems()).toHaveLength(7);
     expect(draggableProps.expanded).toBe(true);
   });
 
@@ -438,7 +443,7 @@ describe.each(["document", "shadow root"])("ContentFab in %s", (context) => {
   test("entering video fullscreen closes an open menu", () => {
     render();
     clickFab();
-    expect(menuItems()).toHaveLength(6);
+    expect(menuItems()).toHaveLength(7);
 
     mockIsVideoFullscreen = true;
     act(() =>

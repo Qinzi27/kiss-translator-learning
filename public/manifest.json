@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "简约翻译 · 一键双语学习版",
   "description": "__MSG_app_description__",
-  "version": "2.0.36",
-  "version_name": "2.0.36-learning.7",
+  "version": "2.0.37",
+  "version_name": "2.0.37-learning.8",
   "mime_types_handler": {
     "application/pdf": {
       "handler_url": "pdf.html"

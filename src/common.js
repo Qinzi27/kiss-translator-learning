@@ -39,7 +39,9 @@ function isOptionsPageHref(href) {
       try {
         const target = new URL(optionsPage);
         const source = new URL(href);
-        return source.origin === target.origin && source.pathname === target.pathname;
+        return (
+          source.origin === target.origin && source.pathname === target.pathname
+        );
       } catch {
         return false;
       }
@@ -151,6 +153,7 @@ async function getFavWords(rule) {
 }
 
 const IFRAME_TEXT_CHECK_TIMEOUT = 1000;
+const MAX_STARTUP_PAGE_ATTEMPTS = 4;
 const IFRAME_TEXT_IGNORE_SELECTOR = [
   "script",
   "style",
@@ -219,13 +222,13 @@ async function waitForIframeTranslatableText() {
  */
 export async function run(isUserscript = false) {
   try {
-    const href = document?.location?.href || "";
+    const initialHref = document?.location?.href || "";
 
     if (isUserscript) {
       ensureUserscriptGM();
 
       // Never export userscript storage/network privileges to the settings webpage.
-      if (isOptionsPageHref(href)) {
+      if (isOptionsPageHref(initialHref)) {
         runSettingPage();
         return;
       }
@@ -236,10 +239,10 @@ export async function run(isUserscript = false) {
     }
 
     // 1. 加载本地设置
-    const setting = await getSettingWithDefault();
+    const initialSetting = await getSettingWithDefault();
 
     // 2. 初始化全局日志配置
-    logger.setLevel(setting.logLevel);
+    logger.setLevel(initialSetting.logLevel);
 
     // 3. 页面类型拦截：若是 PDF / 图片 / 音视频等非 HTML 或纯文本媒体页面，则终止执行，避免注入多余 DOM
     const contentType = document?.contentType?.toLowerCase() || "";
@@ -253,66 +256,102 @@ export async function run(isUserscript = false) {
       return;
     }
 
-    // 5. 网页黑名单校验，命中时彻底不启动翻译
-    if (isInBlacklist(href, setting.blacklist)) {
+    // A SPA can change URL while initialization awaits storage or rule loading.
+    // Rebuild each candidate from the original preferences, so a restriction on
+    // an abandoned URL cannot leak into the eventual page. Repeated navigation
+    // is a safe non-start, never an unbounded retry loop.
+    for (let attempt = 0; attempt < MAX_STARTUP_PAGE_ATTEMPTS; attempt++) {
+      const href = document.location.href;
+      const pageChanged = () => document.location.href !== href;
+      const setting = {
+        ...initialSetting,
+        tranboxSetting: { ...initialSetting.tranboxSetting },
+        inputRule: { ...initialSetting.inputRule },
+        mouseHoverSetting: { ...initialSetting.mouseHoverSetting },
+      };
+      if (isUserscript && isOptionsPageHref(href)) {
+        runSettingPage();
+        return;
+      }
+
+      // 5. 网页黑名单校验，命中时彻底不启动翻译
+      if (isInBlacklist(href, setting.blacklist)) {
+        return;
+      }
+
+      // 5.1. iframe 空内容拦截：默认允许 iframe 翻译，但空 iframe 不继续挂载后续脚本
+      if (isIframe) {
+        const hasText = await waitForIframeTranslatableText();
+        if (pageChanged()) continue;
+        if (!hasText) return;
+      }
+
+      // 6. 细粒度划词/输入框/鼠标悬停组件的专属黑名单拦截，若命中则单独禁用该交互组件
+      if (isInBlacklist(href, setting.tranboxSetting?.blacklist)) {
+        setting.tranboxSetting.transOpen = false;
+      }
+
+      if (isInBlacklist(href, setting.inputRule?.blacklist)) {
+        setting.inputRule.transOpen = false;
+      }
+
+      if (isInBlacklist(href, setting.mouseHoverSetting?.blacklist)) {
+        setting.mouseHoverSetting.useMouseHover = false;
+      }
+
+      // 7. 匹配当前网页专用的规则 (三级规则合并：个人 > 订阅 > 内置全局)
+      const rule = { ...(await matchRule(href, setting)) };
+      if (pageChanged()) continue;
+      const favWords = await getFavWords(rule);
+      if (pageChanged()) continue;
+      const fabConfig = { ...(await getFabWithDefault()) };
+      // No await between this final URL check and constructing/starting the manager.
+      if (pageChanged()) continue;
+      // Each new document starts fresh. A legacy/subscribed rule cannot grant
+      // automatic uploads; only the explicit local lock authorizes the top page.
+      // Iframes still accept explicit extension commands; PDF remains transbox-only.
+      rule.transOpen =
+        !isIframe && !isPdfDocument && fabConfig.translationLocked === true
+          ? "true"
+          : "false";
+      // 名单命中时反转全局显隐：全局显示为黑名单，全局隐藏为白名单。
+      if (
+        !isIframe &&
+        !isPdfDocument &&
+        isInBlacklist(href, fabConfig.hideExceptionList)
+      ) {
+        fabConfig.isHide = !fabConfig.isHide;
+      }
+
+      // 8. 创建翻译调度器管理器并启动
+      const translatorManager = new TranslatorManager({
+        setting,
+        rule,
+        fabConfig,
+        favWords,
+        isIframe,
+        isUserscript,
+        transboxOnly: isPdfDocument,
+      });
+      translatorManager.start();
+
+      // 9. 若当前页面是嵌套的 iframe，不进行视频字幕翻译，避免多个 iframe 里重复跑字幕服务造成冲突
+      if (isIframe || isPdfDocument) {
+        return;
+      }
+
+      // 10. 启动视频字幕翻译子模块 (仅在顶级 frame 下运行)
+      runSubtitle({ href, setting, rule, isUserscript });
+
+      // 11. 在油猴环境下，每次进入顶级页面时尝试触发一次订阅规则的自动同步检查 (每日一次)
+      if (isUserscript) {
+        trySyncAllSubRules(setting);
+      }
       return;
     }
-
-    // 5.1. iframe 空内容拦截：默认允许 iframe 翻译，但空 iframe 不继续挂载后续脚本
-    if (isIframe && !(await waitForIframeTranslatableText())) {
-      return;
-    }
-
-    // 6. 细粒度划词/输入框/鼠标悬停组件的专属黑名单拦截，若命中则单独禁用该交互组件
-    if (isInBlacklist(href, setting.tranboxSetting?.blacklist)) {
-      setting.tranboxSetting.transOpen = false;
-    }
-
-    if (isInBlacklist(href, setting.inputRule?.blacklist)) {
-      setting.inputRule.transOpen = false;
-    }
-
-    if (isInBlacklist(href, setting.mouseHoverSetting?.blacklist)) {
-      setting.mouseHoverSetting.useMouseHover = false;
-    }
-
-    // 7. 匹配当前网页专用的规则 (三级规则合并：个人 > 订阅 > 内置全局)
-    const rule = await matchRule(href, setting);
-    const favWords = await getFavWords(rule);
-    const fabConfig = { ...(await getFabWithDefault()) };
-    // 名单命中时反转全局显隐：全局显示为黑名单，全局隐藏为白名单。
-    if (
-      !isIframe &&
-      !isPdfDocument &&
-      isInBlacklist(href, fabConfig.hideExceptionList)
-    ) {
-      fabConfig.isHide = !fabConfig.isHide;
-    }
-
-    // 8. 创建翻译调度器管理器并启动
-    const translatorManager = new TranslatorManager({
-      setting,
-      rule,
-      fabConfig,
-      favWords,
-      isIframe,
-      isUserscript,
-      transboxOnly: isPdfDocument,
-    });
-    translatorManager.start();
-
-    // 9. 若当前页面是嵌套的 iframe，不进行视频字幕翻译，避免多个 iframe 里重复跑字幕服务造成冲突
-    if (isIframe || isPdfDocument) {
-      return;
-    }
-
-    // 10. 启动视频字幕翻译子模块 (仅在顶级 frame 下运行)
-    runSubtitle({ href, setting, rule, isUserscript });
-
-    // 11. 在油猴环境下，每次进入顶级页面时尝试触发一次订阅规则的自动同步检查 (每日一次)
-    if (isUserscript) {
-      trySyncAllSubRules(setting);
-    }
+    logger.info(
+      "Page kept navigating during initialization; automatic startup was skipped."
+    );
   } catch (err) {
     console.error("[KISS-Translator]", err);
     showErr(err.message); // 向前台页面绘制报错 Banner，便于用户感知与排查问题

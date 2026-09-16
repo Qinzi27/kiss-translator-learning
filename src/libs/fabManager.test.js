@@ -64,3 +64,46 @@ test("ignores non-local and damaged changes, and deletion restores defaults", ()
   expect(manager.getConfig().idleColor).toBe(DEFAULT_FAB.idleColor);
   manager.destroy();
 });
+
+test("lock badge publication is isolated from normal FAB storage changes and reports save errors", () => {
+  const manager = new FabManager({
+    fabConfig: { translationLocked: false, idleColor: "#123456" },
+  });
+  const observer = jest.fn();
+  manager.props.configStore.subscribe(observer);
+  manager.setTranslationLock(true);
+  expect(manager.getConfig()).toMatchObject({
+    translationLocked: true,
+    translationLockError: "",
+  });
+  expect(Object.isFrozen(manager.props.configStore.getSnapshot())).toBe(true);
+  const changed = browser.storage.onChanged.addListener.mock.calls[0][0];
+  changed(
+    {
+      [STOKEY_FAB]: {
+        newValue: JSON.stringify({
+          idleColor: "#654321",
+          translationLocked: false,
+          translationLockError: "forged",
+        }),
+      },
+    },
+    "local"
+  );
+  expect(manager.getConfig()).toMatchObject({
+    idleColor: "#654321",
+    translationLocked: true,
+    translationLockError: "",
+  });
+  manager.setTranslationLock(true, "锁定设置未保存，请重试。");
+  expect(manager.getConfig().translationLockError).toContain("未保存");
+  changed({ [STOKEY_FAB]: { newValue: undefined } }, "local");
+  expect(manager.getConfig().translationLocked).toBe(true);
+  manager.setTranslationLock(false);
+  expect(manager.getConfig()).toMatchObject({
+    translationLocked: false,
+    translationLockError: "",
+  });
+  expect(observer).toHaveBeenCalledTimes(5);
+  manager.destroy();
+});
